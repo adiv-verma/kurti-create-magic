@@ -88,10 +88,11 @@ serve(async (req) => {
     const defaultImagePrompt = `Generate a professional fashion photography image with these STRICT requirements:
 
 1. MODEL: An Indian woman model, FULL BODY shot from head to toe. She should have Indian features, a natural elegant pose.
-2. KURTI: The model is wearing a beautiful kurti made from the provided fabric pattern. The kurti should showcase the fabric's pattern, color, and texture prominently.
+2. KURTI/GARMENT: The model is wearing a garment made EXACTLY from the provided fabric. CRITICAL: The garment design, pattern, color, texture, print, and embroidery must be an EXACT match to the original fabric image. Do NOT alter, simplify, or reinterpret the fabric design in any way. The garment should look like it was cut and stitched directly from this exact fabric — no creative variations, no color shifts, no pattern modifications.
 3. LOWER GARMENT: The model MUST wear plain, simple bottoms (churidar, palazzo, or straight pants) with ABSOLUTELY NO embroidery, NO prints, NO patterns on the lower garment. The lower should be a solid neutral color (white, beige, black, or matching the kurti).
 4. BACKGROUND: ${backgroundImageUrl ? "Use the provided background image as the setting/backdrop for the photo." : "Use a clean, professional studio background."}
-5. LIGHTING: Professional studio lighting with soft shadows, high-end fashion photography style.`;
+5. LIGHTING: Professional studio lighting with soft shadows, high-end fashion photography style.
+6. FABRIC FIDELITY: This is the MOST IMPORTANT requirement. The fabric on the garment must be a pixel-perfect representation of the input fabric image. Preserve every detail — weave, texture, color gradients, motifs, embroidery, prints. No artistic license.`;
 
     const imagePrompt = customPrompt 
       ? `${defaultImagePrompt}\n\n6. ADDITIONAL CUSTOMIZATION: ${customPrompt}`

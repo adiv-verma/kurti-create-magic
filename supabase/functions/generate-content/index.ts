@@ -92,12 +92,12 @@ serve(async (req) => {
     // Build image prompt with default settings
     const defaultImagePrompt = `Generate a professional fashion photography image with these STRICT requirements:
 
-1. MODEL: An Indian woman model, FULL BODY shot from head to toe. She should have Indian features, a natural elegant pose.
+1. MODEL FACE & BODY: An Indian woman model, FULL BODY shot from head to toe. Her FACE must be CLEARLY VISIBLE, well-lit, sharp, and photorealistic — showing natural Indian features with a confident, pleasant expression. The face is a TOP PRIORITY and must NOT be obscured, blurred, cropped, or hidden in any way. Natural skin texture, clear eyes, and realistic facial details are essential.
 2. KURTI/GARMENT: The model is wearing a garment made EXACTLY from the provided fabric. CRITICAL: The garment design, pattern, color, texture, print, and embroidery must be an EXACT match to the original fabric image. Do NOT alter, simplify, or reinterpret the fabric design in any way. The garment should look like it was cut and stitched directly from this exact fabric — no creative variations, no color shifts, no pattern modifications.
 3. LOWER GARMENT: The model MUST wear plain, simple bottoms (churidar, palazzo, or straight pants) with ABSOLUTELY NO embroidery, NO prints, NO patterns on the lower garment. The lower should be a solid neutral color (white, beige, black, or matching the kurti).
 4. BACKGROUND: ${backgroundImageUrl ? "Use the provided background image as the setting/backdrop for the photo." : "Use a clean, professional studio background."}
-5. LIGHTING: Professional studio lighting with soft shadows, high-end fashion photography style.
-6. FABRIC FIDELITY: This is the MOST IMPORTANT requirement. The fabric on the garment must be a pixel-perfect representation of the input fabric image. Preserve every detail — weave, texture, color gradients, motifs, embroidery, prints. No artistic license.`;
+5. LIGHTING: Professional studio lighting with soft shadows, high-end fashion photography style. Ensure the model's face is well-illuminated.
+6. FABRIC FIDELITY: The fabric on the garment must closely match the input fabric image. Preserve details — weave, texture, color gradients, motifs, embroidery, prints. No artistic license. However, do NOT sacrifice model face quality for fabric accuracy.`;
 
     const imagePrompt = customPrompt 
       ? `${defaultImagePrompt}\n\n6. ADDITIONAL CUSTOMIZATION: ${customPrompt}`

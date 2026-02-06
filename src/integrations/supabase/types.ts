@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      background_images: {
+        Row: {
+          file_name: string
+          id: string
+          image_url: string
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          file_name?: string
+          id?: string
+          image_url: string
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          file_name?: string
+          id?: string
+          image_url?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fabric_images: {
         Row: {
           file_name: string

@@ -45,7 +45,7 @@ serve(async (req) => {
       });
     }
 
-    const { fabricId, imageUrl, contentId } = await req.json();
+    const { fabricId, imageUrl, contentId, customPrompt } = await req.json();
 
     if (!fabricId || !imageUrl) {
       return new Response(JSON.stringify({ error: "fabricId and imageUrl are required" }), {
@@ -69,8 +69,15 @@ serve(async (req) => {
       });
     }
 
+    // Build image prompt based on user customization
+    const defaultImagePrompt = "Generate a professional fashion photography image of an Indian woman model wearing a beautiful kurti made from this exact fabric pattern. The model should have Indian features, a natural elegant pose, studio lighting with soft shadows, high-end fashion photography style. The kurti should showcase the fabric's pattern, color, and texture prominently. Clean white or neutral studio background. Full body or three-quarter shot.";
+    
+    const imagePrompt = customPrompt 
+      ? `${defaultImagePrompt}\n\nAdditional customization requested by the user: ${customPrompt}`
+      : defaultImagePrompt;
+
     // Step 1: Generate model image using Nano Banana Pro (image generation model)
-    console.log("Generating model image...");
+    console.log("Generating model image with prompt:", customPrompt ? `custom: ${customPrompt}` : "default");
     const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -85,7 +92,7 @@ serve(async (req) => {
             content: [
               {
                 type: "text",
-                text: "Generate a professional fashion photography image of an Indian woman model wearing a beautiful kurti made from this exact fabric pattern. The model should have Indian features, a natural elegant pose, studio lighting with soft shadows, high-end fashion photography style. The kurti should showcase the fabric's pattern, color, and texture prominently. Clean white or neutral studio background. Full body or three-quarter shot.",
+                text: imagePrompt,
               },
               {
                 type: "image_url",
@@ -160,15 +167,15 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-pro-image-preview",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Generate a professional fashion photography image of an Indian woman model wearing a beautiful kurti made from this exact fabric pattern. The model should have Indian features, a natural elegant pose, studio lighting with soft shadows, high-end fashion photography style. The kurti should showcase the fabric's pattern, color, and texture prominently. Clean white or neutral studio background. Full body or three-quarter shot.",
-                },
+           model: "google/gemini-3-pro-image-preview",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: imagePrompt,
+                  },
                 {
                   type: "image_url",
                   image_url: { url: imageUrl },
@@ -224,7 +231,7 @@ serve(async (req) => {
 Return ONLY a JSON object with exactly this format, no other text:
 {"hindi": "2-3 sentences in Hindi describing the kurti design, fabric quality, colors, pattern, and suitable occasions", "english": "2-3 sentences in English with the same description"}
 
-Make the captions appealing for Indian fashion buyers on social media. Mention fabric type, colors, patterns, and occasions.`,
+Make the captions appealing for Indian fashion buyers on social media. Mention fabric type, colors, patterns, and occasions.${customPrompt ? `\n\nAdditional context from the user about the content: ${customPrompt}` : ""}`,
               },
               {
                 type: "image_url",

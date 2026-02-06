@@ -13,7 +13,7 @@ interface ContentCardProps {
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onUpdateStatus: (id: string, status: ContentStatus) => void;
-  onRegenerate: (contentId: string, fabricId: string, imageUrl: string) => void;
+  onOpenRegenerateDialog: (contentId: string, fabricId: string, imageUrl: string) => void;
   onDownload: (item: any) => void;
 }
 
@@ -24,7 +24,7 @@ const ContentCard = ({
   isSelected,
   onToggleSelect,
   onUpdateStatus,
-  onRegenerate,
+  onOpenRegenerateDialog,
   onDownload,
 }: ContentCardProps) => {
   const fabric = item.fabric_images as any;
@@ -153,7 +153,7 @@ const ContentCard = ({
               size="sm"
               variant="outline"
               disabled={isRegenerating}
-              onClick={() => onRegenerate(item.id, item.fabric_id, fabric?.image_url)}
+              onClick={() => onOpenRegenerateDialog(item.id, item.fabric_id, fabric?.image_url)}
             >
               {isRegenerating ? (
                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />

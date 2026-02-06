@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 import ContentCard from "@/components/library/ContentCard";
 import BulkActions from "@/components/library/BulkActions";
+import RegenerateDialog from "@/components/library/RegenerateDialog";
 import { downloadContentBundle } from "@/lib/downloadContent";
 
 type ContentStatus = Database["public"]["Enums"]["content_status"];
@@ -27,6 +28,14 @@ const Library = () => {
   const [filter, setFilter] = useState<ContentStatus | "all">("all");
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Regenerate dialog state
+  const [regenDialogOpen, setRegenDialogOpen] = useState(false);
+  const [regenTarget, setRegenTarget] = useState<{
+    contentId: string;
+    fabricId: string;
+    imageUrl: string;
+  } | null>(null);
 
   const { data: content = [], isLoading } = useQuery({
     queryKey: ["generated_content", user?.id, filter],
@@ -77,11 +86,21 @@ const Library = () => {
     },
   });
 
-  const regenerate = async (contentId: string, fabricId: string, imageUrl: string) => {
+  const openRegenerateDialog = (contentId: string, fabricId: string, imageUrl: string) => {
+    setRegenTarget({ contentId, fabricId, imageUrl });
+    setRegenDialogOpen(true);
+  };
+
+  const handleRegenerateConfirm = async (customPrompt: string) => {
+    if (!regenTarget) return;
+    const { contentId, fabricId, imageUrl } = regenTarget;
+
+    setRegenDialogOpen(false);
     setRegeneratingId(contentId);
+
     try {
       const response = await supabase.functions.invoke("generate-content", {
-        body: { fabricId, imageUrl, contentId },
+        body: { fabricId, imageUrl, contentId, customPrompt: customPrompt || undefined },
       });
       if (response.error) throw response.error;
       queryClient.invalidateQueries({ queryKey: ["generated_content"] });
@@ -90,6 +109,7 @@ const Library = () => {
       toast({ title: "Regeneration failed", description: err.message, variant: "destructive" });
     } finally {
       setRegeneratingId(null);
+      setRegenTarget(null);
     }
   };
 
@@ -185,7 +205,7 @@ const Library = () => {
                     onUpdateStatus={(id, status) =>
                       updateStatusMutation.mutate({ id, status })
                     }
-                    onRegenerate={regenerate}
+                    onOpenRegenerateDialog={openRegenerateDialog}
                     onDownload={handleDownload}
                   />
                 ))}
@@ -194,6 +214,14 @@ const Library = () => {
           </>
         )}
       </div>
+
+      {/* Regenerate customization dialog */}
+      <RegenerateDialog
+        open={regenDialogOpen}
+        onOpenChange={setRegenDialogOpen}
+        isRegenerating={regeneratingId !== null}
+        onConfirm={handleRegenerateConfirm}
+      />
     </AppLayout>
   );
 };

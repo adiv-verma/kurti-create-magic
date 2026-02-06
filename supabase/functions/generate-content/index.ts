@@ -45,7 +45,7 @@ serve(async (req) => {
       });
     }
 
-    const { fabricId, imageUrl, contentId, customPrompt } = await req.json();
+    const { fabricId, imageUrl, contentId, customPrompt, backgroundImageUrl: providedBgUrl } = await req.json();
 
     if (!fabricId || !imageUrl) {
       return new Response(JSON.stringify({ error: "fabricId and imageUrl are required" }), {
@@ -69,19 +69,24 @@ serve(async (req) => {
       });
     }
 
-    // Fetch a random background image from the user's uploads
-    let backgroundImageUrl: string | null = null;
-    const { data: bgFiles } = await supabaseAdmin.storage
-      .from("background-images")
-      .list(user.id, { limit: 100 });
+    // Use explicitly provided background URL, or fall back to random from user's uploads
+    let backgroundImageUrl: string | null = providedBgUrl || null;
 
-    if (bgFiles && bgFiles.length > 0) {
-      const randomBg = bgFiles[Math.floor(Math.random() * bgFiles.length)];
-      const { data: bgUrlData } = supabaseAdmin.storage
+    if (!backgroundImageUrl) {
+      const { data: bgFiles } = await supabaseAdmin.storage
         .from("background-images")
-        .getPublicUrl(`${user.id}/${randomBg.name}`);
-      backgroundImageUrl = bgUrlData.publicUrl;
-      console.log("Using background image:", randomBg.name);
+        .list(user.id, { limit: 100 });
+
+      if (bgFiles && bgFiles.length > 0) {
+        const randomBg = bgFiles[Math.floor(Math.random() * bgFiles.length)];
+        const { data: bgUrlData } = supabaseAdmin.storage
+          .from("background-images")
+          .getPublicUrl(`${user.id}/${randomBg.name}`);
+        backgroundImageUrl = bgUrlData.publicUrl;
+        console.log("Using random background image:", randomBg.name);
+      }
+    } else {
+      console.log("Using user-selected background image");
     }
 
     // Build image prompt with default settings

@@ -2,28 +2,29 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
-import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Trash2, Loader2, ImageIcon, Layers } from "lucide-react";
+import { motion } from "framer-motion";
+import { Upload, Loader2, ImageIcon, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useBackgroundImages } from "@/hooks/useBackgroundImages";
+import BackgroundSelectDialog from "@/components/upload/BackgroundSelectDialog";
+import ImageGallery from "@/components/upload/ImageGallery";
 
 type UploadTab = "fabric" | "background";
 
-const tabConfig: Record<UploadTab, { label: string; icon: typeof Upload; bucket: string; description: string; helpText: string }> = {
+const tabConfig: Record<UploadTab, { label: string; icon: typeof Upload; description: string; helpText: string }> = {
   fabric: {
     label: "Fabric Images",
     icon: Layers,
-    bucket: "fabric-images",
     description: "Upload fabric images to generate AI fashion content",
-    helpText: "Each fabric image will trigger automatic AI generation of a model wearing a kurti made from this fabric, along with bilingual captions.",
+    helpText: "Each fabric image will trigger automatic AI generation of a model wearing a kurti made from this fabric, along with bilingual captions. You'll be asked to choose a background image before generation starts.",
   },
   background: {
     label: "Background Images",
     icon: ImageIcon,
-    bucket: "background-images",
     description: "Upload custom backgrounds for AI-generated photos",
-    helpText: "Background images are used as studio settings for your AI model photos. Upload indoor/outdoor scenes, textured walls, or studio backdrops to customize the look of your generated fashion content. These will be available as options when generating new content.",
+    helpText: "Background images are used as studio settings for your AI model photos. Upload indoor/outdoor scenes, textured walls, or studio backdrops. You'll be able to choose from these when generating content from fabric images.",
   },
 };
 
@@ -35,7 +36,12 @@ const UploadPage = () => {
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<UploadTab>("fabric");
 
+  // Background selection dialog state
+  const [bgDialogOpen, setBgDialogOpen] = useState(false);
+  const [pendingFabricFiles, setPendingFabricFiles] = useState<File[]>([]);
+
   const config = tabConfig[activeTab];
+  const { backgroundImages, uploadBackgrounds, deleteBackground } = useBackgroundImages();
 
   // Fetch fabric images
   const { data: fabricImages = [] } = useQuery({
@@ -52,62 +58,55 @@ const UploadPage = () => {
     enabled: !!user,
   });
 
-  // Upload mutation
-  const uploadMutation = useMutation({
-    mutationFn: async (files: File[]) => {
-      if (!user) throw new Error("Not authenticated");
-      setUploading(true);
+  // Upload fabric images with a chosen background
+  const uploadFabricWithBackground = async (files: File[], backgroundUrl: string | null) => {
+    if (!user) return;
+    setUploading(true);
 
+    try {
       for (const file of files) {
         const fileExt = file.name.split(".").pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-          .from(config.bucket)
+          .from("fabric-images")
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage.from(config.bucket).getPublicUrl(filePath);
+        const { data: urlData } = supabase.storage.from("fabric-images").getPublicUrl(filePath);
 
-        if (activeTab === "fabric") {
-          const { data: fabricData, error: insertError } = await supabase
-            .from("fabric_images")
-            .insert({
-              user_id: user.id,
-              image_url: urlData.publicUrl,
-              file_name: file.name,
-            })
-            .select()
-            .single();
+        const { data: fabricData, error: insertError } = await supabase
+          .from("fabric_images")
+          .insert({
+            user_id: user.id,
+            image_url: urlData.publicUrl,
+            file_name: file.name,
+          })
+          .select()
+          .single();
 
-          if (insertError) throw insertError;
+        if (insertError) throw insertError;
 
-          if (fabricData) {
-            triggerGeneration(fabricData.id, urlData.publicUrl);
-          }
+        if (fabricData) {
+          triggerGeneration(fabricData.id, urlData.publicUrl, backgroundUrl);
         }
       }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fabric_images"] });
-      const message = activeTab === "fabric"
-        ? "AI content generation has started."
-        : "Background images saved successfully.";
-      toast({ title: "Upload complete!", description: message });
-      setUploading(false);
-    },
-    onError: (error: any) => {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
-      setUploading(false);
-    },
-  });
 
-  const triggerGeneration = async (fabricId: string, imageUrl: string) => {
+      queryClient.invalidateQueries({ queryKey: ["fabric_images"] });
+      toast({ title: "Upload complete!", description: "AI content generation has started." });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const triggerGeneration = async (fabricId: string, imageUrl: string, backgroundImageUrl: string | null) => {
     try {
       const response = await supabase.functions.invoke("generate-content", {
-        body: { fabricId, imageUrl },
+        body: { fabricId, imageUrl, backgroundImageUrl },
       });
       if (response.error) {
         console.error("Generation error:", response.error);
@@ -119,7 +118,7 @@ const UploadPage = () => {
     }
   };
 
-  const deleteMutation = useMutation({
+  const deleteFabricMutation = useMutation({
     mutationFn: async (imageId: string) => {
       const { error } = await supabase.from("fabric_images").delete().eq("id", imageId);
       if (error) throw error;
@@ -130,6 +129,19 @@ const UploadPage = () => {
     },
   });
 
+  // Handle fabric files — open background selection dialog first
+  const handleFabricFiles = (files: File[]) => {
+    setPendingFabricFiles(files);
+    setBgDialogOpen(true);
+  };
+
+  // After user picks a background (or skips)
+  const handleBackgroundSelected = (backgroundUrl: string | null) => {
+    setBgDialogOpen(false);
+    uploadFabricWithBackground(pendingFabricFiles, backgroundUrl);
+    setPendingFabricFiles([]);
+  };
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -137,16 +149,30 @@ const UploadPage = () => {
       const files = Array.from(e.dataTransfer.files).filter((f) =>
         f.type.startsWith("image/")
       );
-      if (files.length > 0) uploadMutation.mutate(files);
+      if (files.length === 0) return;
+
+      if (activeTab === "fabric") {
+        handleFabricFiles(files);
+      } else {
+        uploadBackgrounds.mutate(files);
+      }
     },
-    [uploadMutation]
+    [activeTab, uploadBackgrounds]
   );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 0) uploadMutation.mutate(files);
+    if (files.length === 0) return;
+
+    if (activeTab === "fabric") {
+      handleFabricFiles(files);
+    } else {
+      uploadBackgrounds.mutate(files);
+    }
     e.target.value = "";
   };
+
+  const isUploading = uploading || uploadBackgrounds.isPending;
 
   return (
     <AppLayout>
@@ -208,7 +234,7 @@ const UploadPage = () => {
                 : "border-border hover:border-primary/40"
             }`}
           >
-            {uploading ? (
+            {isUploading ? (
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
                 <p className="text-foreground font-medium">
@@ -247,57 +273,34 @@ const UploadPage = () => {
         </motion.div>
 
         {/* Gallery */}
-        {activeTab === "fabric" && fabricImages.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="mt-8"
-          >
-            <h2 className="text-xl font-display font-semibold text-foreground mb-4">
-              Uploaded Fabrics ({fabricImages.length})
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              <AnimatePresence>
-                {fabricImages.map((img, i) => (
-                  <motion.div
-                    key={img.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="glass-card rounded-xl overflow-hidden group"
-                  >
-                    <div className="aspect-square relative">
-                      <img
-                        src={img.image_url}
-                        alt={img.file_name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/40 transition-colors flex items-center justify-center">
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => deleteMutation.mutate(img.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-sm font-medium text-foreground truncate">{img.file_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(img.uploaded_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          </motion.div>
+        {activeTab === "fabric" && (
+          <ImageGallery
+            title="Uploaded Fabrics"
+            images={fabricImages}
+            onDelete={(id) => deleteFabricMutation.mutate(id)}
+          />
+        )}
+        {activeTab === "background" && (
+          <ImageGallery
+            title="Uploaded Backgrounds"
+            images={backgroundImages}
+            onDelete={(id) => deleteBackground.mutate(id)}
+          />
         )}
       </div>
+
+      {/* Background selection dialog — shown before fabric upload begins */}
+      <BackgroundSelectDialog
+        open={bgDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBgDialogOpen(false);
+            setPendingFabricFiles([]);
+          }
+        }}
+        backgrounds={backgroundImages}
+        onConfirm={handleBackgroundSelected}
+      />
     </AppLayout>
   );
 };

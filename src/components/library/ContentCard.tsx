@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, RefreshCw, Loader2, Download, ImageIcon } from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
@@ -71,22 +71,8 @@ const ContentCard = ({
               </span>
             </div>
           </div>
-
-          {/* Background preview */}
-          {item.background_image_url && (
-            <div className="relative h-20 w-full">
-              <img
-                src={item.background_image_url}
-                alt="Background used"
-                className="w-full h-full object-cover"
-              />
-              <span className="absolute bottom-1.5 left-2 text-xs bg-foreground/70 text-background px-2 py-0.5 rounded-md flex items-center gap-1">
-                <ImageIcon className="w-3 h-3" />
-                Background
-              </span>
-            </div>
-          )}
         </div>
+
 
         {/* Content */}
         <div className="flex-1 p-5 flex flex-col">

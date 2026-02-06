@@ -1,8 +1,10 @@
-import { CheckCircle, XCircle, RefreshCw, Loader2, Download } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle, XCircle, RefreshCw, Loader2, Download, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
 import type { Database } from "@/integrations/supabase/types";
+import ImageLightbox from "./ImageLightbox";
 
 type ContentStatus = Database["public"]["Enums"]["content_status"];
 
@@ -28,54 +30,69 @@ const ContentCard = ({
   onDownload,
 }: ContentCardProps) => {
   const fabric = item.fabric_images as any;
+  const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null);
 
   return (
-    <motion.div
-      key={item.id}
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ delay: index * 0.05 }}
-      className={`glass-card rounded-2xl overflow-hidden transition-all ${
-        isSelected ? "ring-2 ring-primary" : ""
-      }`}
-    >
-      <div className="flex flex-col md:flex-row">
-        {/* Images */}
-        <div className="flex flex-col md:w-2/5">
-          <div className="flex flex-row">
-            <div className="w-1/2 aspect-square relative">
-              <img
-                src={fabric?.image_url}
-                alt="Fabric"
-                className="w-full h-full object-cover"
-              />
-              <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
-                Fabric
-              </span>
+    <>
+      <motion.div
+        key={item.id}
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ delay: index * 0.05 }}
+        className={`glass-card rounded-2xl overflow-hidden transition-all ${
+          isSelected ? "ring-2 ring-primary" : ""
+        }`}
+      >
+        {/* Top: Side-by-side images */}
+        <div className="flex flex-row">
+          <div
+            className="w-1/2 aspect-[3/4] relative group cursor-pointer"
+            onClick={() => setLightbox({ url: fabric?.image_url, label: "Fabric" })}
+          >
+            <img
+              src={fabric?.image_url}
+              alt="Fabric"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
+              <ZoomIn className="w-6 h-6 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
             </div>
-            <div className="w-1/2 aspect-square relative">
-              {item.model_image_url ? (
+            <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
+              Fabric
+            </span>
+          </div>
+          <div
+            className="w-1/2 aspect-[3/4] relative group cursor-pointer"
+            onClick={() =>
+              item.model_image_url &&
+              setLightbox({ url: item.model_image_url, label: "AI Model" })
+            }
+          >
+            {item.model_image_url ? (
+              <>
                 <img
                   src={item.model_image_url}
                   alt="AI Generated"
                   className="w-full h-full object-cover"
                 />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
+                  <ZoomIn className="w-6 h-6 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
                 </div>
-              )}
-              <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
-                AI Model
-              </span>
-            </div>
+              </>
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+              </div>
+            )}
+            <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
+              AI Model
+            </span>
           </div>
         </div>
 
-
-        {/* Content */}
-        <div className="flex-1 p-5 flex flex-col">
+        {/* Bottom: Content & Actions */}
+        <div className="p-4 flex flex-col">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
               <Checkbox
@@ -178,8 +195,15 @@ const ContentCard = ({
             )}
           </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+
+      <ImageLightbox
+        open={!!lightbox}
+        onOpenChange={(open) => !open && setLightbox(null)}
+        imageUrl={lightbox?.url || null}
+        label={lightbox?.label}
+      />
+    </>
   );
 };
 

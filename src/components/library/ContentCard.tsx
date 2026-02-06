@@ -45,52 +45,50 @@ const ContentCard = ({
         }`}
       >
       <div className="flex flex-col md:flex-row">
-        {/* Images */}
-        <div className="md:w-2/5">
-          <div className="flex flex-row">
-            <div
-              className="w-1/2 aspect-square relative group cursor-pointer"
-              onClick={() => setLightbox({ url: fabric?.image_url, label: "Fabric" })}
-            >
-              <img
-                src={fabric?.image_url}
-                alt="Fabric"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
-                <ZoomIn className="w-5 h-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-              </div>
-              <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
-                Fabric
-              </span>
+        {/* Images — stretch to fill card height, no fixed aspect ratio */}
+        <div className="md:w-2/5 flex flex-row min-h-[200px]">
+          <div
+            className="w-1/2 relative group cursor-pointer"
+            onClick={() => setLightbox({ url: fabric?.image_url, label: "Fabric" })}
+          >
+            <img
+              src={fabric?.image_url}
+              alt="Fabric"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
+              <ZoomIn className="w-5 h-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
             </div>
-            <div
-              className="w-1/2 aspect-square relative group cursor-pointer"
-              onClick={() =>
-                item.model_image_url &&
-                setLightbox({ url: item.model_image_url, label: "AI Model" })
-              }
-            >
-              {item.model_image_url ? (
-                <>
-                  <img
-                    src={item.model_image_url}
-                    alt="AI Generated"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
-                    <ZoomIn className="w-5 h-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-                  </div>
-                </>
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+            <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
+              Fabric
+            </span>
+          </div>
+          <div
+            className="w-1/2 relative group cursor-pointer"
+            onClick={() =>
+              item.model_image_url &&
+              setLightbox({ url: item.model_image_url, label: "AI Model" })
+            }
+          >
+            {item.model_image_url ? (
+              <>
+                <img
+                  src={item.model_image_url}
+                  alt="AI Generated"
+                  className="absolute inset-0 w-full h-full object-cover object-top"
+                />
+                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
+                  <ZoomIn className="w-5 h-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
                 </div>
-              )}
-              <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
-                AI Model
-              </span>
-            </div>
+              </>
+            ) : (
+              <div className="absolute inset-0 bg-muted flex items-center justify-center">
+                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+              </div>
+            )}
+            <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
+              AI Model
+            </span>
           </div>
         </div>
 

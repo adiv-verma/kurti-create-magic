@@ -290,13 +290,17 @@ Make the captions appealing for Indian fashion buyers on social media. Mention f
 
     // Step 3: Save or update generated content
     // Re-verify fabric still exists (it could have been deleted during AI generation)
-    const { data: fabricStillExists } = await supabaseAdmin
+    const { data: fabricStillExists, error: fabricCheckError } = await supabaseAdmin
       .from("fabric_images")
       .select("id")
       .eq("id", fabricId)
-      .single();
+      .maybeSingle();
 
-    if (!fabricStillExists) {
+    if (fabricCheckError) {
+      console.warn("Error checking fabric existence, proceeding with save:", fabricCheckError.message);
+    }
+
+    if (!fabricStillExists && !fabricCheckError) {
       console.warn("Fabric image was deleted during generation, skipping save");
       return new Response(
         JSON.stringify({ error: "Fabric image was deleted during generation. Please re-upload and try again." }),

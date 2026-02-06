@@ -3,10 +3,29 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, X, Image as ImageIcon, Trash2, Loader2 } from "lucide-react";
+import { Upload, Trash2, Loader2, ImageIcon, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+type UploadTab = "fabric" | "background";
+
+const tabConfig: Record<UploadTab, { label: string; icon: typeof Upload; bucket: string; description: string; helpText: string }> = {
+  fabric: {
+    label: "Fabric Images",
+    icon: Layers,
+    bucket: "fabric-images",
+    description: "Upload fabric images to generate AI fashion content",
+    helpText: "Each fabric image will trigger automatic AI generation of a model wearing a kurti made from this fabric, along with bilingual captions.",
+  },
+  background: {
+    label: "Background Images",
+    icon: ImageIcon,
+    bucket: "background-images",
+    description: "Upload custom backgrounds for AI-generated photos",
+    helpText: "Background images are used as studio settings for your AI model photos. Upload indoor/outdoor scenes, textured walls, or studio backdrops to customize the look of your generated fashion content. These will be available as options when generating new content.",
+  },
+};
 
 const UploadPage = () => {
   const { user } = useAuth();
@@ -14,7 +33,9 @@ const UploadPage = () => {
   const queryClient = useQueryClient();
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"fabric" | "background">("fabric");
+  const [activeTab, setActiveTab] = useState<UploadTab>("fabric");
+
+  const config = tabConfig[activeTab];
 
   // Fetch fabric images
   const { data: fabricImages = [] } = useQuery({
@@ -31,7 +52,7 @@ const UploadPage = () => {
     enabled: !!user,
   });
 
-  // Upload fabric image mutation
+  // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
       if (!user) throw new Error("Not authenticated");
@@ -42,17 +63,15 @@ const UploadPage = () => {
         const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
 
-        const bucket = activeTab === "fabric" ? "fabric-images" : "background-images";
         const { error: uploadError } = await supabase.storage
-          .from(bucket)
+          .from(config.bucket)
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        const { data: urlData } = supabase.storage.from(config.bucket).getPublicUrl(filePath);
 
         if (activeTab === "fabric") {
-          // Insert into fabric_images table
           const { data: fabricData, error: insertError } = await supabase
             .from("fabric_images")
             .insert({
@@ -65,7 +84,6 @@ const UploadPage = () => {
 
           if (insertError) throw insertError;
 
-          // Trigger AI generation
           if (fabricData) {
             triggerGeneration(fabricData.id, urlData.publicUrl);
           }
@@ -74,7 +92,10 @@ const UploadPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fabric_images"] });
-      toast({ title: "Upload complete!", description: "AI content generation has started." });
+      const message = activeTab === "fabric"
+        ? "AI content generation has started."
+        : "Background images saved successfully.";
+      toast({ title: "Upload complete!", description: message });
       setUploading(false);
     },
     onError: (error: any) => {
@@ -132,27 +153,41 @@ const UploadPage = () => {
       <div className="p-6 md:p-8 max-w-6xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-3xl font-display font-bold text-foreground mb-1">Upload Images</h1>
-          <p className="text-muted-foreground mb-6">
-            Upload fabric images to generate AI fashion content
-          </p>
+          <p className="text-muted-foreground mb-6">{config.description}</p>
         </motion.div>
 
         {/* Tab selector */}
         <div className="flex gap-2 mb-6">
-          {(["fabric", "background"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
-                activeTab === tab
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              {tab === "fabric" ? "Fabric Images" : "Background Images"}
-            </button>
-          ))}
+          {(Object.keys(tabConfig) as UploadTab[]).map((tab) => {
+            const TabIcon = tabConfig[tab].icon;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === tab
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                <TabIcon className="w-4 h-4" />
+                {tabConfig[tab].label}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Info box */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card rounded-xl p-4 mb-6 border-l-4 border-l-primary"
+        >
+          <p className="text-sm text-foreground leading-relaxed">
+            💡 {config.helpText}
+          </p>
+        </motion.div>
 
         {/* Drop zone */}
         <motion.div
@@ -176,10 +211,14 @@ const UploadPage = () => {
             {uploading ? (
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <p className="text-foreground font-medium">Uploading & generating...</p>
-                <p className="text-sm text-muted-foreground">
-                  AI is creating model images and captions
+                <p className="text-foreground font-medium">
+                  {activeTab === "fabric" ? "Uploading & generating..." : "Uploading..."}
                 </p>
+                {activeTab === "fabric" && (
+                  <p className="text-sm text-muted-foreground">
+                    AI is creating model images and captions
+                  </p>
+                )}
               </div>
             ) : (
               <>

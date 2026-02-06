@@ -322,6 +322,7 @@ Make the captions appealing for Indian fashion buyers on social media. Mention f
           model_image_url: modelImageUrl,
           caption_hindi: captionHindi,
           caption_english: captionEnglish,
+          background_image_url: backgroundImageUrl,
           status: "pending",
         })
         .eq("id", contentId)
@@ -338,6 +339,7 @@ Make the captions appealing for Indian fashion buyers on social media. Mention f
           model_image_url: modelImageUrl,
           caption_hindi: captionHindi,
           caption_english: captionEnglish,
+          background_image_url: backgroundImageUrl,
           status: "pending",
         });
 

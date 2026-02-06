@@ -11,6 +11,7 @@ import ContentCard from "@/components/library/ContentCard";
 import BulkActions from "@/components/library/BulkActions";
 import RegenerateDialog from "@/components/library/RegenerateDialog";
 import { downloadContentBundle } from "@/lib/downloadContent";
+import { useBackgroundImages } from "@/hooks/useBackgroundImages";
 
 type ContentStatus = Database["public"]["Enums"]["content_status"];
 
@@ -36,6 +37,8 @@ const Library = () => {
     fabricId: string;
     imageUrl: string;
   } | null>(null);
+
+  const { backgroundImages } = useBackgroundImages();
 
   const { data: content = [], isLoading } = useQuery({
     queryKey: ["generated_content", user?.id, filter],
@@ -91,7 +94,7 @@ const Library = () => {
     setRegenDialogOpen(true);
   };
 
-  const handleRegenerateConfirm = async (customPrompt: string) => {
+  const handleRegenerateConfirm = async (customPrompt: string, backgroundUrl: string | null) => {
     if (!regenTarget) return;
     const { contentId, fabricId, imageUrl } = regenTarget;
 
@@ -100,7 +103,13 @@ const Library = () => {
 
     try {
       const response = await supabase.functions.invoke("generate-content", {
-        body: { fabricId, imageUrl, contentId, customPrompt: customPrompt || undefined },
+        body: {
+          fabricId,
+          imageUrl,
+          contentId,
+          customPrompt: customPrompt || undefined,
+          backgroundImageUrl: backgroundUrl,
+        },
       });
       if (response.error) throw response.error;
       queryClient.invalidateQueries({ queryKey: ["generated_content"] });
@@ -220,6 +229,7 @@ const Library = () => {
         open={regenDialogOpen}
         onOpenChange={setRegenDialogOpen}
         isRegenerating={regeneratingId !== null}
+        backgrounds={backgroundImages}
         onConfirm={handleRegenerateConfirm}
       />
     </AppLayout>

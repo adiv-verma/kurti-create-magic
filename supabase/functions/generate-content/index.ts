@@ -69,15 +69,57 @@ serve(async (req) => {
       });
     }
 
-    // Build image prompt based on user customization
-    const defaultImagePrompt = "Generate a professional fashion photography image of an Indian woman model wearing a beautiful kurti made from this exact fabric pattern. The model should have Indian features, a natural elegant pose, studio lighting with soft shadows, high-end fashion photography style. The kurti should showcase the fabric's pattern, color, and texture prominently. Clean white or neutral studio background. Full body or three-quarter shot.";
-    
+    // Fetch a random background image from the user's uploads
+    let backgroundImageUrl: string | null = null;
+    const { data: bgFiles } = await supabaseAdmin.storage
+      .from("background-images")
+      .list(user.id, { limit: 100 });
+
+    if (bgFiles && bgFiles.length > 0) {
+      const randomBg = bgFiles[Math.floor(Math.random() * bgFiles.length)];
+      const { data: bgUrlData } = supabaseAdmin.storage
+        .from("background-images")
+        .getPublicUrl(`${user.id}/${randomBg.name}`);
+      backgroundImageUrl = bgUrlData.publicUrl;
+      console.log("Using background image:", randomBg.name);
+    }
+
+    // Build image prompt with default settings
+    const defaultImagePrompt = `Generate a professional fashion photography image with these STRICT requirements:
+
+1. MODEL: An Indian woman model, FULL BODY shot from head to toe. She should have Indian features, a natural elegant pose.
+2. KURTI: The model is wearing a beautiful kurti made from the provided fabric pattern. The kurti should showcase the fabric's pattern, color, and texture prominently.
+3. LOWER GARMENT: The model MUST wear plain, simple bottoms (churidar, palazzo, or straight pants) with ABSOLUTELY NO embroidery, NO prints, NO patterns on the lower garment. The lower should be a solid neutral color (white, beige, black, or matching the kurti).
+4. BACKGROUND: ${backgroundImageUrl ? "Use the provided background image as the setting/backdrop for the photo." : "Use a clean, professional studio background."}
+5. LIGHTING: Professional studio lighting with soft shadows, high-end fashion photography style.`;
+
     const imagePrompt = customPrompt 
-      ? `${defaultImagePrompt}\n\nAdditional customization requested by the user: ${customPrompt}`
+      ? `${defaultImagePrompt}\n\n6. ADDITIONAL CUSTOMIZATION: ${customPrompt}`
       : defaultImagePrompt;
 
     // Step 1: Generate model image using Nano Banana Pro (image generation model)
     console.log("Generating model image with prompt:", customPrompt ? `custom: ${customPrompt}` : "default");
+
+    // Build message content with fabric image and optional background image
+    const messageContent: any[] = [
+      {
+        type: "text",
+        text: imagePrompt,
+      },
+      {
+        type: "image_url",
+        image_url: { url: imageUrl },
+      },
+    ];
+
+    // Include background image if available
+    if (backgroundImageUrl) {
+      messageContent.push({
+        type: "image_url",
+        image_url: { url: backgroundImageUrl },
+      });
+    }
+
     const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -89,16 +131,7 @@ serve(async (req) => {
         messages: [
           {
             role: "user",
-            content: [
-              {
-                type: "text",
-                text: imagePrompt,
-              },
-              {
-                type: "image_url",
-                image_url: { url: imageUrl },
-              },
-            ],
+            content: messageContent,
           },
         ],
         modalities: ["image", "text"],
@@ -167,20 +200,11 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-           model: "google/gemini-3-pro-image-preview",
-            messages: [
-              {
-                role: "user",
-                content: [
-                  {
-                    type: "text",
-                    text: imagePrompt,
-                  },
-                {
-                  type: "image_url",
-                  image_url: { url: imageUrl },
-                },
-              ],
+          model: "google/gemini-3-pro-image-preview",
+          messages: [
+            {
+              role: "user",
+              content: messageContent,
             },
           ],
           modalities: ["image", "text"],

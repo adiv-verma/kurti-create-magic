@@ -64,6 +64,7 @@ export type Database = {
       }
       generated_content: {
         Row: {
+          background_image_url: string | null
           caption_english: string | null
           caption_hindi: string | null
           created_at: string
@@ -75,6 +76,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          background_image_url?: string | null
           caption_english?: string | null
           caption_hindi?: string | null
           created_at?: string
@@ -86,6 +88,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          background_image_url?: string | null
           caption_english?: string | null
           caption_hindi?: string | null
           created_at?: string

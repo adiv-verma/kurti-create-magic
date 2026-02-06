@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, RefreshCw, Loader2, Download } from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw, Loader2, Download, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
@@ -42,33 +42,50 @@ const ContentCard = ({
     >
       <div className="flex flex-col md:flex-row">
         {/* Images */}
-        <div className="flex flex-row md:w-2/5">
-          <div className="w-1/2 aspect-square relative">
-            <img
-              src={fabric?.image_url}
-              alt="Fabric"
-              className="w-full h-full object-cover"
-            />
-            <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
-              Fabric
-            </span>
-          </div>
-          <div className="w-1/2 aspect-square relative">
-            {item.model_image_url ? (
+        <div className="flex flex-col md:w-2/5">
+          <div className="flex flex-row">
+            <div className="w-1/2 aspect-square relative">
               <img
-                src={item.model_image_url}
-                alt="AI Generated"
+                src={fabric?.image_url}
+                alt="Fabric"
                 className="w-full h-full object-cover"
               />
-            ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-              </div>
-            )}
-            <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
-              AI Model
-            </span>
+              <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
+                Fabric
+              </span>
+            </div>
+            <div className="w-1/2 aspect-square relative">
+              {item.model_image_url ? (
+                <img
+                  src={item.model_image_url}
+                  alt="AI Generated"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                </div>
+              )}
+              <span className="absolute bottom-2 left-2 text-xs bg-foreground/70 text-background px-2 py-1 rounded-md">
+                AI Model
+              </span>
+            </div>
           </div>
+
+          {/* Background preview */}
+          {item.background_image_url && (
+            <div className="relative h-20 w-full">
+              <img
+                src={item.background_image_url}
+                alt="Background used"
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-1.5 left-2 text-xs bg-foreground/70 text-background px-2 py-0.5 rounded-md flex items-center gap-1">
+                <ImageIcon className="w-3 h-3" />
+                Background
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Content */}

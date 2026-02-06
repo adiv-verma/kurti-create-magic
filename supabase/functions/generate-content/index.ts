@@ -122,6 +122,8 @@ serve(async (req) => {
 
     // Extract generated image and upload to storage
     const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    console.log("Image generation response has image:", !!generatedImage, "starts with data:image:", generatedImage?.startsWith("data:image"));
+    
     if (generatedImage && generatedImage.startsWith("data:image")) {
       // Upload base64 image to storage
       const base64Data = generatedImage.split(",")[1];
@@ -138,7 +140,66 @@ serve(async (req) => {
           .getPublicUrl(fileName);
         modelImageUrl = urlData.publicUrl;
       } else {
-        console.error("Upload error:", uploadError);
+        console.error("Storage upload error:", uploadError);
+      }
+    } else {
+      console.warn("No valid image in AI response. Full response structure:", JSON.stringify({
+        hasChoices: !!imageData.choices,
+        choiceCount: imageData.choices?.length,
+        hasMessage: !!imageData.choices?.[0]?.message,
+        hasImages: !!imageData.choices?.[0]?.message?.images,
+        imageCount: imageData.choices?.[0]?.message?.images?.length,
+      }));
+      
+      // Retry once if no image was returned
+      console.log("Retrying image generation...");
+      const retryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-pro-image-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Generate a professional fashion photography image of an Indian woman model wearing a beautiful kurti made from this exact fabric pattern. The model should have Indian features, a natural elegant pose, studio lighting with soft shadows, high-end fashion photography style. The kurti should showcase the fabric's pattern, color, and texture prominently. Clean white or neutral studio background. Full body or three-quarter shot.",
+                },
+                {
+                  type: "image_url",
+                  image_url: { url: imageUrl },
+                },
+              ],
+            },
+          ],
+          modalities: ["image", "text"],
+        }),
+      });
+
+      if (retryResponse.ok) {
+        const retryData = await retryResponse.json();
+        const retryImage = retryData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (retryImage && retryImage.startsWith("data:image")) {
+          const base64Data = retryImage.split(",")[1];
+          const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+          const fileName = `${user.id}/${Date.now()}-model.png`;
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from("generated-images")
+            .upload(fileName, imageBytes, { contentType: "image/png" });
+          if (!uploadError) {
+            const { data: urlData } = supabaseAdmin.storage
+              .from("generated-images")
+              .getPublicUrl(fileName);
+            modelImageUrl = urlData.publicUrl;
+            console.log("Retry succeeded, image uploaded");
+          }
+        } else {
+          console.warn("Retry also failed to produce an image");
+        }
       }
     }
 

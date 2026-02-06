@@ -265,6 +265,21 @@ Make the captions appealing for Indian fashion buyers on social media. Mention f
     }
 
     // Step 3: Save or update generated content
+    // Re-verify fabric still exists (it could have been deleted during AI generation)
+    const { data: fabricStillExists } = await supabaseAdmin
+      .from("fabric_images")
+      .select("id")
+      .eq("id", fabricId)
+      .single();
+
+    if (!fabricStillExists) {
+      console.warn("Fabric image was deleted during generation, skipping save");
+      return new Response(
+        JSON.stringify({ error: "Fabric image was deleted during generation. Please re-upload and try again." }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (contentId) {
       // Update existing content (regeneration)
       const { error: updateError } = await supabaseAdmin

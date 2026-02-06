@@ -295,25 +295,6 @@ Make the captions appealing for Indian fashion buyers on social media. Mention f
     }
 
     // Step 3: Save or update generated content
-    // Re-verify fabric still exists (it could have been deleted during AI generation)
-    const { data: fabricStillExists, error: fabricCheckError } = await supabaseAdmin
-      .from("fabric_images")
-      .select("id")
-      .eq("id", fabricId)
-      .maybeSingle();
-
-    if (fabricCheckError) {
-      console.warn("Error checking fabric existence, proceeding with save:", fabricCheckError.message);
-    }
-
-    if (!fabricStillExists && !fabricCheckError) {
-      console.warn("Fabric image was deleted during generation, skipping save");
-      return new Response(
-        JSON.stringify({ error: "Fabric image was deleted during generation. Please re-upload and try again." }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     if (contentId) {
       // Update existing content (regeneration)
       const { error: updateError } = await supabaseAdmin
@@ -330,7 +311,7 @@ Make the captions appealing for Indian fashion buyers on social media. Mention f
 
       if (updateError) throw updateError;
     } else {
-      // Insert new content
+      // Insert new content — handle FK violation gracefully if fabric was deleted mid-generation
       const { error: insertError } = await supabaseAdmin
         .from("generated_content")
         .insert({
@@ -343,7 +324,21 @@ Make the captions appealing for Indian fashion buyers on social media. Mention f
           status: "pending",
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.code === "23503") {
+          // FK violation — fabric was deleted during generation
+          console.warn("Fabric was deleted during generation, content not saved:", fabricId);
+          return new Response(
+            JSON.stringify({ 
+              error: "The fabric image was removed while content was being generated. Please re-upload and try again.",
+              partialSuccess: true,
+              modelImageUrl,
+            }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        throw insertError;
+      }
     }
 
     return new Response(

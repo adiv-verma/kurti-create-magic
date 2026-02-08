@@ -43,6 +43,7 @@ export type Database = {
           file_name: string
           id: string
           image_url: string
+          upload_type: string
           uploaded_at: string
           user_id: string
         }
@@ -50,6 +51,7 @@ export type Database = {
           file_name?: string
           id?: string
           image_url: string
+          upload_type?: string
           uploaded_at?: string
           user_id: string
         }
@@ -57,6 +59,7 @@ export type Database = {
           file_name?: string
           id?: string
           image_url?: string
+          upload_type?: string
           uploaded_at?: string
           user_id?: string
         }

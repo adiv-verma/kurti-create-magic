@@ -163,8 +163,10 @@ const Library = () => {
   };
 
   const handleDownload = async (item: any) => {
-    toast({ title: "Downloading content..." });
-    await downloadContentBundle(item);
+    toast({ title: "Downloading content bundle...", description: "Files will download one at a time" });
+    await downloadContentBundle(item, (label) => {
+      toast({ title: label });
+    });
     toast({ title: "Download complete!" });
   };
 

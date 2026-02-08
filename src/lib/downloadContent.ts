@@ -4,16 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
  * Download the AI-generated model image, captions, and any associated reel
  * assets (voiceover, music, video) as a bundle.
  */
-export async function downloadContentBundle(item: {
-  id: string;
-  model_image_url: string | null;
-  caption_hindi: string | null;
-  caption_english: string | null;
-  fabric_images?: { file_name?: string } | null;
-}) {
+export async function downloadContentBundle(
+  item: {
+    id: string;
+    model_image_url: string | null;
+    caption_hindi: string | null;
+    caption_english: string | null;
+    fabric_images?: { file_name?: string } | null;
+  },
+  onProgress?: (label: string) => void,
+) {
   const baseName = item.fabric_images?.file_name?.replace(/\.[^.]+$/, "") || "kurti-content";
 
   // Download captions as text file
+  onProgress?.("Downloading captions...");
   const captionText = [
     "=== Hindi Caption ===",
     item.caption_hindi || "(No Hindi caption)",
@@ -29,12 +33,14 @@ export async function downloadContentBundle(item: {
 
   // Download model image
   if (item.model_image_url) {
+    onProgress?.("Downloading model image...");
+    await delay(600);
     await downloadFile(item.model_image_url, `${baseName}-model.png`);
   }
 
   // Fetch associated reel and download its assets
   try {
-    const { data: reel } = await supabase
+    const { data: reel, error: reelError } = await supabase
       .from("reels")
       .select("voiceover_url, music_url, video_url")
       .eq("content_id", item.id)
@@ -42,20 +48,28 @@ export async function downloadContentBundle(item: {
       .limit(1)
       .maybeSingle();
 
+    if (reelError) {
+      console.error("Failed to query reel:", reelError);
+    }
+
     if (reel) {
-      // Stagger downloads slightly to avoid browser popup blocking
       if (reel.voiceover_url) {
-        await delay(300);
+        onProgress?.("Downloading voiceover...");
+        await delay(800);
         await downloadFile(reel.voiceover_url, `${baseName}-voiceover.mp3`);
       }
       if (reel.music_url) {
-        await delay(300);
+        onProgress?.("Downloading music...");
+        await delay(800);
         await downloadFile(reel.music_url, `${baseName}-music.mp3`);
       }
       if (reel.video_url) {
-        await delay(300);
+        onProgress?.("Downloading video...");
+        await delay(800);
         await downloadFile(reel.video_url, `${baseName}-reel.mp4`);
       }
+    } else {
+      console.log("No reel found for content_id:", item.id);
     }
   } catch (err) {
     console.error("Failed to fetch reel assets:", err);

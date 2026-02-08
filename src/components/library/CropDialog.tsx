@@ -104,8 +104,18 @@ const CropDialog = ({
   };
 
   const handleSave = () => {
-    if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
-      onSave(completedCrop);
+    if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0 && imgRef.current) {
+      const { naturalWidth, naturalHeight, width, height } = imgRef.current;
+      const scaleX = naturalWidth / width;
+      const scaleY = naturalHeight / height;
+      const scaledCrop: PixelCrop = {
+        unit: 'px',
+        x: Math.round(completedCrop.x * scaleX),
+        y: Math.round(completedCrop.y * scaleY),
+        width: Math.round(completedCrop.width * scaleX),
+        height: Math.round(completedCrop.height * scaleY),
+      };
+      onSave(scaledCrop);
     }
   };
 

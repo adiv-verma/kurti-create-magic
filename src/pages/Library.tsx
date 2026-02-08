@@ -11,9 +11,11 @@ import ContentCard from "@/components/library/ContentCard";
 import BulkActions from "@/components/library/BulkActions";
 import RegenerateDialog from "@/components/library/RegenerateDialog";
 import CropDialog from "@/components/library/CropDialog";
+import ReelPreviewDialog from "@/components/library/ReelPreviewDialog";
 import { downloadContentBundle } from "@/lib/downloadContent";
 import { useBackgroundImages } from "@/hooks/useBackgroundImages";
 import { getCroppedImageBlob } from "@/lib/cropImage";
+import { useReelGeneration } from "@/hooks/useReelGeneration";
 import type { PixelCrop } from "react-image-crop";
 
 type ContentStatus = Database["public"]["Enums"]["content_status"];
@@ -50,6 +52,14 @@ const Library = () => {
   const [isCropping, setIsCropping] = useState(false);
 
   const { backgroundImages } = useBackgroundImages();
+  const {
+    generatingReelId,
+    reelPreview,
+    reelDialogOpen,
+    setReelDialogOpen,
+    generateReel,
+    approveAndDownload,
+  } = useReelGeneration();
 
   const { data: content = [], isLoading } = useQuery({
     queryKey: ["generated_content", user?.id, filter],
@@ -257,6 +267,7 @@ const Library = () => {
                     item={item}
                     index={i}
                     isRegenerating={regeneratingId === item.id}
+                    isGeneratingReel={generatingReelId === item.id}
                     isSelected={selectedIds.has(item.id)}
                     onToggleSelect={toggleSelect}
                     onUpdateStatus={(id, status) =>
@@ -265,6 +276,7 @@ const Library = () => {
                     onOpenRegenerateDialog={openRegenerateDialog}
                     onDownload={handleDownload}
                     onCrop={openCropDialog}
+                    onGenerateReel={generateReel}
                   />
                 ))}
               </AnimatePresence>
@@ -289,6 +301,14 @@ const Library = () => {
         imageUrl={cropTarget?.imageUrl || null}
         isSaving={isCropping}
         onSave={handleCropSave}
+      />
+
+      {/* Reel preview dialog */}
+      <ReelPreviewDialog
+        open={reelDialogOpen}
+        onOpenChange={setReelDialogOpen}
+        reel={reelPreview}
+        onApprove={approveAndDownload}
       />
     </AppLayout>
   );

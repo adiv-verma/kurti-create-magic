@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, XCircle, RefreshCw, Loader2, Download, ZoomIn, Crop } from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw, Loader2, Download, ZoomIn, Crop, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
@@ -12,24 +12,28 @@ interface ContentCardProps {
   item: any;
   index: number;
   isRegenerating: boolean;
+  isGeneratingReel: boolean;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onUpdateStatus: (id: string, status: ContentStatus) => void;
   onOpenRegenerateDialog: (contentId: string, fabricId: string, imageUrl: string) => void;
   onDownload: (item: any) => void;
   onCrop: (contentId: string, imageUrl: string) => void;
+  onGenerateReel: (contentId: string) => void;
 }
 
 const ContentCard = ({
   item,
   index,
   isRegenerating,
+  isGeneratingReel,
   isSelected,
   onToggleSelect,
   onUpdateStatus,
   onOpenRegenerateDialog,
   onDownload,
   onCrop,
+  onGenerateReel,
 }: ContentCardProps) => {
   const fabric = item.fabric_images as any;
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null);
@@ -151,7 +155,22 @@ const ContentCard = ({
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 mt-auto pt-3 border-t border-border">
-            {item.status !== "approved" && (
+            {item.status !== "approved" && item.model_image_url && (
+              <Button
+                size="sm"
+                className="bg-success hover:bg-success/90 text-success-foreground"
+                onClick={() => onGenerateReel(item.id)}
+                disabled={isGeneratingReel}
+              >
+                {isGeneratingReel ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <Film className="w-4 h-4 mr-1" />
+                )}
+                {isGeneratingReel ? "Generating Reel…" : "Generate Reel"}
+              </Button>
+            )}
+            {item.status !== "approved" && !item.model_image_url && (
               <Button
                 size="sm"
                 className="bg-success hover:bg-success/90 text-success-foreground"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, XCircle, RefreshCw, Loader2, Download, ZoomIn } from "lucide-react";
+import { CheckCircle, XCircle, RefreshCw, Loader2, Download, ZoomIn, Crop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { motion } from "framer-motion";
@@ -17,6 +17,7 @@ interface ContentCardProps {
   onUpdateStatus: (id: string, status: ContentStatus) => void;
   onOpenRegenerateDialog: (contentId: string, fabricId: string, imageUrl: string) => void;
   onDownload: (item: any) => void;
+  onCrop: (contentId: string, imageUrl: string) => void;
 }
 
 const ContentCard = ({
@@ -28,6 +29,7 @@ const ContentCard = ({
   onUpdateStatus,
   onOpenRegenerateDialog,
   onDownload,
+  onCrop,
 }: ContentCardProps) => {
   const fabric = item.fabric_images as any;
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null);
@@ -183,6 +185,16 @@ const ContentCard = ({
               )}
               Regenerate
             </Button>
+            {item.model_image_url && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onCrop(item.id, item.model_image_url)}
+              >
+                <Crop className="w-4 h-4 mr-1" />
+                Crop
+              </Button>
+            )}
             {item.status === "approved" && item.model_image_url && (
               <Button
                 size="sm"

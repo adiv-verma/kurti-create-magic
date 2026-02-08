@@ -10,8 +10,11 @@ import type { Database } from "@/integrations/supabase/types";
 import ContentCard from "@/components/library/ContentCard";
 import BulkActions from "@/components/library/BulkActions";
 import RegenerateDialog from "@/components/library/RegenerateDialog";
+import CropDialog from "@/components/library/CropDialog";
 import { downloadContentBundle } from "@/lib/downloadContent";
 import { useBackgroundImages } from "@/hooks/useBackgroundImages";
+import { getCroppedImageBlob } from "@/lib/cropImage";
+import type { Area } from "react-easy-crop";
 
 type ContentStatus = Database["public"]["Enums"]["content_status"];
 
@@ -37,6 +40,14 @@ const Library = () => {
     fabricId: string;
     imageUrl: string;
   } | null>(null);
+
+  // Crop dialog state
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropTarget, setCropTarget] = useState<{
+    contentId: string;
+    imageUrl: string;
+  } | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
 
   const { backgroundImages } = useBackgroundImages();
 
@@ -137,6 +148,43 @@ const Library = () => {
     toast({ title: "Download complete!" });
   };
 
+  const openCropDialog = (contentId: string, imageUrl: string) => {
+    setCropTarget({ contentId, imageUrl });
+    setCropDialogOpen(true);
+  };
+
+  const handleCropSave = async (croppedAreaPixels: Area) => {
+    if (!cropTarget) return;
+    setIsCropping(true);
+    try {
+      const croppedBlob = await getCroppedImageBlob(cropTarget.imageUrl, croppedAreaPixels);
+      const fileName = `cropped_${cropTarget.contentId}_${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("generated-images")
+        .upload(fileName, croppedBlob, { contentType: "image/png", upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from("generated-images")
+        .getPublicUrl(fileName);
+
+      const { error: updateError } = await supabase
+        .from("generated_content")
+        .update({ model_image_url: publicUrlData.publicUrl })
+        .eq("id", cropTarget.contentId);
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ["generated_content"] });
+      toast({ title: "Image cropped and saved!" });
+      setCropDialogOpen(false);
+      setCropTarget(null);
+    } catch (err: any) {
+      toast({ title: "Crop failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsCropping(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -216,6 +264,7 @@ const Library = () => {
                     }
                     onOpenRegenerateDialog={openRegenerateDialog}
                     onDownload={handleDownload}
+                    onCrop={openCropDialog}
                   />
                 ))}
               </AnimatePresence>
@@ -231,6 +280,15 @@ const Library = () => {
         isRegenerating={regeneratingId !== null}
         backgrounds={backgroundImages}
         onConfirm={handleRegenerateConfirm}
+      />
+
+      {/* Crop dialog */}
+      <CropDialog
+        open={cropDialogOpen}
+        onOpenChange={setCropDialogOpen}
+        imageUrl={cropTarget?.imageUrl || null}
+        isSaving={isCropping}
+        onSave={handleCropSave}
       />
     </AppLayout>
   );

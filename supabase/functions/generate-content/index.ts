@@ -89,8 +89,68 @@ serve(async (req) => {
       console.log("Using user-selected background image");
     }
 
-    // Build image prompt with default settings
-    const defaultImagePrompt = `Generate a professional fashion photography image with these STRICT requirements:
+    // Step 0: Auto-detect if the uploaded image contains a human model
+    console.log("Detecting if image contains a human model...");
+    let hasHumanModel = false;
+    try {
+      const detectResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Analyze this image and determine: Does this image contain a human person or model wearing a garment/fabric? Or is it just a fabric swatch / flat fabric / textile sample without any person?
+
+Return ONLY a JSON object with this exact format, no other text:
+{"has_model": true} or {"has_model": false}
+
+Rules:
+- If a person, model, or mannequin is visible wearing the fabric → {"has_model": true}
+- If it's just flat fabric, a textile roll, a swatch, or fabric draped on a surface without a person → {"has_model": false}`,
+                },
+                {
+                  type: "image_url",
+                  image_url: { url: imageUrl },
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (detectResponse.ok) {
+        const detectData = await detectResponse.json();
+        const detectText = detectData.choices?.[0]?.message?.content || "";
+        const jsonMatch = detectText.match(/\{[\s\S]*?\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          hasHumanModel = parsed.has_model === true;
+        }
+      }
+    } catch (e) {
+      console.error("Model detection failed, defaulting to standard prompt:", e);
+    }
+    console.log("Image contains human model:", hasHumanModel);
+
+    // Build image prompt — use mannequin prompt if a human model was detected in the source image
+    const defaultImagePrompt = hasHumanModel
+      ? `Generate a professional fashion product photography image with these STRICT requirements:
+
+1. MANNEQUIN DISPLAY: Display the garment on a clean, elegant MANNEQUIN (dress form / torso mannequin). The mannequin should be a standard fashion display mannequin — NO human face, NO human body. Show the FULL garment from top to bottom on the mannequin.
+2. KURTI/GARMENT: The garment on the mannequin must be made EXACTLY from the provided fabric. CRITICAL: The garment design, pattern, color, texture, print, and embroidery must be an EXACT match to the original fabric image. Do NOT alter, simplify, or reinterpret the fabric design in any way. The garment should look like it was cut and stitched directly from this exact fabric — no creative variations, no color shifts, no pattern modifications.
+3. BACKGROUND: ${backgroundImageUrl ? "Use the provided background image as the setting/backdrop for the photo." : "Use a clean, professional studio background with neutral tones."}
+4. LIGHTING: Professional studio lighting with soft shadows, high-end fashion product photography style. Even, well-distributed lighting to showcase the fabric details.
+5. FABRIC FIDELITY: The fabric on the garment must closely match the input fabric image. Preserve details — weave, texture, color gradients, motifs, embroidery, prints. No artistic license.
+6. STYLING: The mannequin display should look premium and retail-ready, similar to high-end e-commerce product shots.`
+      : `Generate a professional fashion photography image with these STRICT requirements:
 
 1. MODEL FACE & BODY: An Indian woman model, FULL BODY shot from head to toe. Her FACE must be CLEARLY VISIBLE, well-lit, sharp, and photorealistic — showing natural Indian features with a confident, pleasant expression. The face is a TOP PRIORITY and must NOT be obscured, blurred, cropped, or hidden in any way. Natural skin texture, clear eyes, and realistic facial details are essential.
 2. KURTI/GARMENT: The model is wearing a garment made EXACTLY from the provided fabric. CRITICAL: The garment design, pattern, color, texture, print, and embroidery must be an EXACT match to the original fabric image. Do NOT alter, simplify, or reinterpret the fabric design in any way. The garment should look like it was cut and stitched directly from this exact fabric — no creative variations, no color shifts, no pattern modifications.
@@ -100,7 +160,7 @@ serve(async (req) => {
 6. FABRIC FIDELITY: The fabric on the garment must closely match the input fabric image. Preserve details — weave, texture, color gradients, motifs, embroidery, prints. No artistic license. However, do NOT sacrifice model face quality for fabric accuracy.`;
 
     const imagePrompt = customPrompt 
-      ? `${defaultImagePrompt}\n\n6. ADDITIONAL CUSTOMIZATION: ${customPrompt}`
+      ? `${defaultImagePrompt}\n\nADDITIONAL CUSTOMIZATION: ${customPrompt}`
       : defaultImagePrompt;
 
     // Step 1: Generate model image using Nano Banana Pro (image generation model)

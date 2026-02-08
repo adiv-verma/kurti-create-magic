@@ -45,7 +45,7 @@ serve(async (req) => {
       });
     }
 
-    const { fabricId, imageUrl, contentId, customPrompt, backgroundImageUrl: providedBgUrl, uploadType } = await req.json();
+    const { fabricId, imageUrl, contentId, customPrompt, backgroundImageUrl: providedBgUrl, uploadType, mannequinImageUrl } = await req.json();
 
     // uploadType: "fabric" (default) or "mannequin"
     const isMannequin = uploadType === "mannequin";
@@ -96,11 +96,11 @@ serve(async (req) => {
     const defaultImagePrompt = isMannequin
       ? `Generate a professional fashion product photography image with these STRICT requirements:
 
-1. MANNEQUIN DISPLAY: Display the garment on a clean, elegant MANNEQUIN (dress form / torso mannequin). The mannequin should be a standard fashion display mannequin — NO human face, NO human body. Show the FULL garment from top to bottom on the mannequin.
-2. KURTI/GARMENT: The garment on the mannequin must be made EXACTLY from the provided fabric. CRITICAL: The garment design, pattern, color, texture, print, and embroidery must be an EXACT match to the original fabric image. Do NOT alter, simplify, or reinterpret the fabric design in any way. The garment should look like it was cut and stitched directly from this exact fabric — no creative variations, no color shifts, no pattern modifications.
+1. MANNEQUIN CONVERSION: The source image shows a model wearing a garment. You MUST convert this to show the EXACT SAME garment displayed on the mannequin/dress form provided in the reference image. Remove the human model entirely and place the garment on the mannequin. The mannequin style, shape, and form must match the provided mannequin reference image exactly.
+2. GARMENT FIDELITY: The garment on the mannequin must be an EXACT match to the garment in the source image — same design, pattern, color, texture, print, and embroidery. Do NOT alter, simplify, or reinterpret the garment in any way. It should look like the exact same garment was physically placed on the mannequin.
 3. BACKGROUND: ${backgroundImageUrl ? "Use the provided background image as the setting/backdrop for the photo." : "Use a clean, professional studio background with neutral tones."}
 4. LIGHTING: Professional studio lighting with soft shadows, high-end fashion product photography style. Even, well-distributed lighting to showcase the fabric details.
-5. FABRIC FIDELITY: The fabric on the garment must closely match the input fabric image. Preserve details — weave, texture, color gradients, motifs, embroidery, prints. No artistic license.
+5. FABRIC FIDELITY: Preserve every detail — weave, texture, color gradients, motifs, embroidery, prints. No artistic license.
 6. STYLING: The mannequin display should look premium and retail-ready, similar to high-end e-commerce product shots.`
       : `Generate a professional fashion photography image with these STRICT requirements:
 
@@ -116,9 +116,9 @@ serve(async (req) => {
       : defaultImagePrompt;
 
     // Step 1: Generate model image using Nano Banana Pro (image generation model)
-    console.log("Generating model image with prompt:", customPrompt ? `custom: ${customPrompt}` : "default");
+    console.log("Generating image with type:", isMannequin ? "mannequin" : "fabric", "mannequin ref:", !!mannequinImageUrl);
 
-    // Build message content with fabric image and optional background image
+    // Build message content with source image, optional mannequin reference, and optional background
     const messageContent: any[] = [
       {
         type: "text",
@@ -129,6 +129,14 @@ serve(async (req) => {
         image_url: { url: imageUrl },
       },
     ];
+
+    // Include mannequin reference image if available (for mannequin mode)
+    if (isMannequin && mannequinImageUrl) {
+      messageContent.push({
+        type: "image_url",
+        image_url: { url: mannequinImageUrl },
+      });
+    }
 
     // Include background image if available
     if (backgroundImageUrl) {

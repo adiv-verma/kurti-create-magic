@@ -1,23 +1,22 @@
-import { useState, useCallback } from "react";
-import Cropper, { Area } from "react-easy-crop";
+import { useState, useRef, useCallback } from "react";
+import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, Crop, RotateCw } from "lucide-react";
-import { Slider } from "@/components/ui/slider";
+import { Loader2, Crop as CropIcon, RotateCcw } from "lucide-react";
 
 interface CropDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   imageUrl: string | null;
   isSaving: boolean;
-  onSave: (croppedAreaPixels: Area) => void;
+  onSave: (pixelCrop: PixelCrop) => void;
 }
 
 const ASPECT_OPTIONS = [
@@ -29,6 +28,18 @@ const ASPECT_OPTIONS = [
   { label: "Landscape (4:3)", value: 4 / 3 },
 ] as const;
 
+function centerAspectCrop(
+  mediaWidth: number,
+  mediaHeight: number,
+  aspect: number
+): Crop {
+  return centerCrop(
+    makeAspectCrop({ unit: "%", width: 80 }, aspect, mediaWidth, mediaHeight),
+    mediaWidth,
+    mediaHeight
+  );
+}
+
 const CropDialog = ({
   open,
   onOpenChange,
@@ -36,31 +47,73 @@ const CropDialog = ({
   isSaving,
   onSave,
 }: CropDialogProps) => {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(0.8);
-  const [rotation, setRotation] = useState(0);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [aspect, setAspect] = useState<number | undefined>(undefined);
-  const [minZoom, setMinZoom] = useState(0.3);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
-    setCroppedAreaPixels(croppedPixels);
-  }, []);
+  const onImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const { naturalWidth, naturalHeight } = e.currentTarget;
+      // Default: select 80% center crop, free aspect
+      if (aspect) {
+        setCrop(centerAspectCrop(naturalWidth, naturalHeight, aspect));
+      } else {
+        setCrop(
+          centerCrop(
+            { unit: "%", width: 80, height: 80, x: 0, y: 0 },
+            naturalWidth,
+            naturalHeight
+          )
+        );
+      }
+    },
+    [aspect]
+  );
+
+  const handleAspectChange = (newAspect: number | undefined) => {
+    setAspect(newAspect);
+    if (imgRef.current) {
+      const { naturalWidth, naturalHeight } = imgRef.current;
+      if (newAspect) {
+        setCrop(centerAspectCrop(naturalWidth, naturalHeight, newAspect));
+      } else {
+        setCrop(
+          centerCrop(
+            { unit: "%", width: 80, height: 80, x: 0, y: 0 },
+            naturalWidth,
+            naturalHeight
+          )
+        );
+      }
+    }
+  };
+
+  const handleReset = () => {
+    setAspect(undefined);
+    if (imgRef.current) {
+      const { naturalWidth, naturalHeight } = imgRef.current;
+      setCrop(
+        centerCrop(
+          { unit: "%", width: 80, height: 80, x: 0, y: 0 },
+          naturalWidth,
+          naturalHeight
+        )
+      );
+    }
+  };
 
   const handleSave = () => {
-    if (croppedAreaPixels) {
-      onSave(croppedAreaPixels);
+    if (completedCrop && completedCrop.width > 0 && completedCrop.height > 0) {
+      onSave(completedCrop);
     }
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
-      setCrop({ x: 0, y: 0 });
-      setZoom(0.8);
-      setRotation(0);
+      setCrop(undefined);
+      setCompletedCrop(undefined);
       setAspect(undefined);
-      setMinZoom(0.3);
-      setCroppedAreaPixels(null);
     }
     onOpenChange(isOpen);
   };
@@ -72,11 +125,11 @@ const CropDialog = ({
       <DialogContent className="max-w-3xl w-[95vw] max-h-[95vh] p-0 gap-0 bg-background border-border overflow-hidden flex flex-col">
         <DialogHeader className="p-4 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Crop className="w-5 h-5" />
+            <CropIcon className="w-5 h-5" />
             Crop Image
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Drag to reposition. Use presets below for common aspect ratios like portrait or tall crops.
+            Drag edges or corners to resize. Drag inside to reposition.
           </DialogDescription>
         </DialogHeader>
 
@@ -85,7 +138,7 @@ const CropDialog = ({
           {ASPECT_OPTIONS.map((opt) => (
             <button
               key={opt.label}
-              onClick={() => setAspect(opt.value)}
+              onClick={() => handleAspectChange(opt.value)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 aspect === opt.value
                   ? "bg-primary text-primary-foreground"
@@ -95,79 +148,44 @@ const CropDialog = ({
               {opt.label}
             </button>
           ))}
+          <button
+            onClick={handleReset}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Reset
+          </button>
         </div>
 
-        {/* Crop area — tall to allow portrait crops */}
-        <div className="relative w-full flex-1 min-h-[50vh] bg-muted">
-          <Cropper
-            image={imageUrl}
+        {/* Crop area */}
+        <div className="flex-1 min-h-[50vh] overflow-auto flex items-center justify-center bg-muted p-4">
+          <ReactCrop
             crop={crop}
-            zoom={zoom}
-            rotation={rotation}
+            onChange={(c) => setCrop(c)}
+            onComplete={(c) => setCompletedCrop(c)}
             aspect={aspect}
-            minZoom={minZoom}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onRotationChange={setRotation}
-            onCropComplete={onCropComplete}
-            onMediaLoaded={(mediaSize) => {
-              // Allow zooming out enough to see the full image
-              const fitZoom = Math.min(
-                1,
-                Math.min(
-                  window.innerWidth * 0.9 / mediaSize.naturalWidth,
-                  window.innerHeight * 0.5 / mediaSize.naturalHeight
-                )
-              );
-              const calculatedMin = Math.max(0.1, fitZoom * 0.5);
-              setMinZoom(calculatedMin);
-              setZoom(Math.max(calculatedMin, 0.8));
-            }}
-            showGrid
-            restrictPosition={false}
-            objectFit="contain"
-          />
+            className="max-h-[65vh]"
+          >
+            <img
+              ref={imgRef}
+              src={imageUrl}
+              alt="Crop preview"
+              onLoad={onImageLoad}
+              crossOrigin="anonymous"
+              className="max-h-[65vh] w-auto object-contain"
+            />
+          </ReactCrop>
         </div>
 
-        {/* Controls */}
-        <div className="p-4 pt-3 space-y-2 border-t border-border shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-muted-foreground w-14">Zoom</span>
-            <Slider
-              value={[zoom]}
-              min={minZoom}
-              max={5}
-              step={0.02}
-              onValueChange={([val]) => setZoom(val)}
-              className="flex-1"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-muted-foreground w-14">Rotate</span>
-            <Slider
-              value={[rotation]}
-              min={0}
-              max={360}
-              step={1}
-              onValueChange={([val]) => setRotation(val)}
-              className="flex-1"
-            />
-            <Button
-              size="icon"
-              variant="outline"
-              className="h-8 w-8 shrink-0"
-              onClick={() => setRotation((r) => (r + 90) % 360)}
-            >
-              <RotateCw className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-
+        {/* Footer */}
         <div className="flex justify-end gap-2 p-4 pt-2 border-t border-border shrink-0">
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving || !croppedAreaPixels}>
+          <Button
+            onClick={handleSave}
+            disabled={isSaving || !completedCrop?.width || !completedCrop?.height}
+          >
             {isSaving ? (
               <>
                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -175,7 +193,7 @@ const CropDialog = ({
               </>
             ) : (
               <>
-                <Crop className="w-4 h-4 mr-1" />
+                <CropIcon className="w-4 h-4 mr-1" />
                 Save Crop
               </>
             )}

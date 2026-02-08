@@ -14,7 +14,7 @@ import CropDialog from "@/components/library/CropDialog";
 import { downloadContentBundle } from "@/lib/downloadContent";
 import { useBackgroundImages } from "@/hooks/useBackgroundImages";
 import { getCroppedImageBlob } from "@/lib/cropImage";
-import type { Area } from "react-easy-crop";
+import type { PixelCrop } from "react-image-crop";
 
 type ContentStatus = Database["public"]["Enums"]["content_status"];
 
@@ -153,7 +153,7 @@ const Library = () => {
     setCropDialogOpen(true);
   };
 
-  const handleCropSave = async (croppedAreaPixels: Area) => {
+  const handleCropSave = async (croppedAreaPixels: PixelCrop) => {
     if (!cropTarget) return;
     setIsCropping(true);
     try {

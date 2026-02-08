@@ -15,11 +15,15 @@ import {
   Music,
   Mic,
   Loader2,
+  Video,
+  FileDown,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
 import { motion, useAnimation } from "framer-motion";
 import type { ReelData } from "@/hooks/useReelGeneration";
 import ReelAudioControls from "./ReelAudioControls";
+import { exportVideo } from "@/lib/videoExport";
 
 interface ReelPreviewDialogProps {
   open: boolean;
@@ -49,6 +53,8 @@ const ReelPreviewDialog = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
 
   const voiceRef = useRef<HTMLAudioElement | null>(null);
   const musicRef = useRef<HTMLAudioElement | null>(null);
@@ -164,7 +170,6 @@ const ReelPreviewDialog = ({
     setIsDownloading(true);
 
     try {
-      // Download files one at a time with delays to avoid browser blocking
       await downloadSingleFile(reel.modelImageUrl, "reel-image.png");
       await new Promise((r) => setTimeout(r, 800));
 
@@ -174,7 +179,6 @@ const ReelPreviewDialog = ({
       await downloadSingleFile(reel.musicUrl, "background-music.mp3");
       await new Promise((r) => setTimeout(r, 800));
 
-      // Create caption text file
       const captionText = `Instagram Caption:\n\n${reel.captionEnglish}\n\n---\n\nHindi Voiceover Script:\n${reel.captionHindi}`;
       const captionBlob = new Blob([captionText], { type: "text/plain" });
       const captionUrl = URL.createObjectURL(captionBlob);
@@ -189,6 +193,38 @@ const ReelPreviewDialog = ({
       console.error("Download error:", err);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleExportVideo = async () => {
+    if (!reel) return;
+    setIsExporting(true);
+    setExportProgress(0);
+
+    try {
+      const blob = await exportVideo({
+        imageUrl: reel.modelImageUrl,
+        voiceoverUrl: reel.voiceoverUrl,
+        musicUrl: reel.musicUrl,
+        voiceVolume: voiceMuted ? 0 : voiceVolume,
+        musicVolume: musicMuted ? 0 : musicVolume,
+        duration: duration || 15,
+        onProgress: (p) => setExportProgress(Math.round(p * 100)),
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "reel-video.webm";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error("Video export error:", err);
+    } finally {
+      setIsExporting(false);
+      setExportProgress(0);
     }
   };
 
@@ -293,30 +329,52 @@ const ReelPreviewDialog = ({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 p-4 pt-2 border-t border-border shrink-0">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={handleDownloadAssets}
-            disabled={isDownloading}
-          >
-            {isDownloading ? (
-              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4 mr-1" />
-            )}
-            Download Assets
-          </Button>
-          <Button
-            className="flex-1 bg-success hover:bg-success/90 text-success-foreground"
-            onClick={() => {
-              onApprove();
-              handleClose(false);
-            }}
-          >
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Approve & Post
-          </Button>
+        <div className="flex flex-col gap-2 p-4 pt-2 border-t border-border shrink-0">
+          {isExporting && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Rendering video… {exportProgress}%</p>
+              <Progress value={exportProgress} className="h-1.5" />
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={handleExportVideo}
+              disabled={isExporting || isDownloading}
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Video className="w-4 h-4 mr-1" />
+              )}
+              Download Video
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleDownloadAssets}
+              disabled={isDownloading || isExporting}
+              title="Download separate assets"
+            >
+              {isDownloading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+            </Button>
+            <Button
+              className="flex-1 bg-success hover:bg-success/90 text-success-foreground"
+              onClick={() => {
+                onApprove();
+                handleClose(false);
+              }}
+              disabled={isExporting}
+            >
+              <CheckCircle className="w-4 h-4 mr-1" />
+              Approve & Post
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

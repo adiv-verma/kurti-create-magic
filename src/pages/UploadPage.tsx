@@ -171,12 +171,19 @@ const UploadPage = () => {
         body: { fabricId, imageUrl, backgroundImageUrl, uploadType, mannequinImageUrl },
       });
       if (response.error) {
-        console.error("Generation error:", response.error);
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["generated_content"] });
+        // Handle 409 (fabric deleted during generation) — partial success is possible
+        const errorBody = typeof response.error === "object" ? response.error : null;
+        const errorMessage = (errorBody as any)?.message || (errorBody as any)?.context?.body
+          ? "The source image was removed while generating. Please re-upload and try again."
+          : "Content generation failed";
+        console.warn("Generation error:", response.error);
+        toast({ title: "Generation issue", description: errorMessage, variant: "destructive" });
       }
-    } catch (err) {
+      // Always refresh — partial content may have been saved
+      queryClient.invalidateQueries({ queryKey: ["generated_content"] });
+    } catch (err: any) {
       console.error("Failed to trigger generation:", err);
+      toast({ title: "Generation failed", description: err.message || "Something went wrong", variant: "destructive" });
     }
   };
 

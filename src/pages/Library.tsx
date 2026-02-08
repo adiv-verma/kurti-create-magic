@@ -132,11 +132,21 @@ const Library = () => {
           backgroundImageUrl: backgroundUrl,
         },
       });
-      if (response.error) throw response.error;
+      if (response.error) {
+        // Check if it's a 409 partial-success (fabric deleted mid-generation)
+        const msg = (response.error as any)?.message || (response.error as any)?.context?.body || "";
+        const isPartial = typeof msg === "string" && msg.includes("removed");
+        if (isPartial) {
+          toast({ title: "Source image was removed", description: "The fabric was deleted during regeneration. Please re-upload.", variant: "destructive" });
+        } else {
+          throw response.error;
+        }
+      } else {
+        toast({ title: "Regeneration complete!" });
+      }
       queryClient.invalidateQueries({ queryKey: ["generated_content"] });
-      toast({ title: "Regeneration complete!" });
     } catch (err: any) {
-      toast({ title: "Regeneration failed", description: err.message, variant: "destructive" });
+      toast({ title: "Regeneration failed", description: err.message || "Something went wrong", variant: "destructive" });
     } finally {
       setRegeneratingId(null);
       setRegenTarget(null);

@@ -37,9 +37,10 @@ const CropDialog = ({
   onSave,
 }: CropDialogProps) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.8);
   const [rotation, setRotation] = useState(0);
   const [aspect, setAspect] = useState<number | undefined>(undefined);
+  const [minZoom, setMinZoom] = useState(0.3);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
@@ -55,9 +56,10 @@ const CropDialog = ({
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setCrop({ x: 0, y: 0 });
-      setZoom(1);
+      setZoom(0.8);
       setRotation(0);
       setAspect(undefined);
+      setMinZoom(0.3);
       setCroppedAreaPixels(null);
     }
     onOpenChange(isOpen);
@@ -103,12 +105,27 @@ const CropDialog = ({
             zoom={zoom}
             rotation={rotation}
             aspect={aspect}
+            minZoom={minZoom}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onRotationChange={setRotation}
             onCropComplete={onCropComplete}
+            onMediaLoaded={(mediaSize) => {
+              // Allow zooming out enough to see the full image
+              const fitZoom = Math.min(
+                1,
+                Math.min(
+                  window.innerWidth * 0.9 / mediaSize.naturalWidth,
+                  window.innerHeight * 0.5 / mediaSize.naturalHeight
+                )
+              );
+              const calculatedMin = Math.max(0.1, fitZoom * 0.5);
+              setMinZoom(calculatedMin);
+              setZoom(Math.max(calculatedMin, 0.8));
+            }}
             showGrid
             restrictPosition={false}
+            objectFit="contain"
           />
         </div>
 
@@ -118,9 +135,9 @@ const CropDialog = ({
             <span className="text-xs font-medium text-muted-foreground w-14">Zoom</span>
             <Slider
               value={[zoom]}
-              min={1}
+              min={minZoom}
               max={5}
-              step={0.05}
+              step={0.02}
               onValueChange={([val]) => setZoom(val)}
               className="flex-1"
             />

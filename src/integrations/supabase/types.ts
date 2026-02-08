@@ -163,6 +163,59 @@ export type Database = {
         }
         Relationships: []
       }
+      reels: {
+        Row: {
+          caption_english: string | null
+          caption_hindi: string | null
+          content_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          music_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          video_url: string | null
+          voiceover_url: string | null
+        }
+        Insert: {
+          caption_english?: string | null
+          caption_hindi?: string | null
+          content_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          music_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+          voiceover_url?: string | null
+        }
+        Update: {
+          caption_english?: string | null
+          caption_hindi?: string | null
+          content_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          music_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+          voiceover_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reels_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "generated_content"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

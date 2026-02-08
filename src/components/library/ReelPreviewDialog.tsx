@@ -12,14 +12,14 @@ import {
   Pause,
   Download,
   CheckCircle,
-  Volume2,
-  VolumeX,
   Music,
   Mic,
   Loader2,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { motion, useAnimation } from "framer-motion";
 import type { ReelData } from "@/hooks/useReelGeneration";
+import ReelAudioControls from "./ReelAudioControls";
 
 interface ReelPreviewDialogProps {
   open: boolean;
@@ -27,6 +27,13 @@ interface ReelPreviewDialogProps {
   reel: ReelData | null;
   onApprove: () => void;
 }
+
+// Ken Burns keyframes — each entry defines a stage of the animation
+const kenBurnsKeyframes = {
+  scale: [1, 1.12, 1.18, 1.1, 1.2, 1.05],
+  x: ["0%", "3%", "-2%", "1%", "-3%", "0%"],
+  y: ["0%", "-2%", "1%", "-3%", "2%", "0%"],
+};
 
 const ReelPreviewDialog = ({
   open,
@@ -46,6 +53,7 @@ const ReelPreviewDialog = ({
   const voiceRef = useRef<HTMLAudioElement | null>(null);
   const musicRef = useRef<HTMLAudioElement | null>(null);
   const animationRef = useRef<number | null>(null);
+  const imgControls = useAnimation();
 
   // Initialize audio elements
   useEffect(() => {
@@ -64,6 +72,7 @@ const ReelPreviewDialog = ({
 
     voice.addEventListener("ended", () => {
       setIsPlaying(false);
+      imgControls.stop();
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     });
 
@@ -75,6 +84,7 @@ const ReelPreviewDialog = ({
       music.pause();
       voice.src = "";
       music.src = "";
+      imgControls.stop();
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, [reel]);
@@ -95,16 +105,30 @@ const ReelPreviewDialog = ({
     animationRef.current = requestAnimationFrame(updateTime);
   }, []);
 
+  const startKenBurns = () => {
+    const totalDuration = duration || 15;
+    imgControls.start({
+      ...kenBurnsKeyframes,
+      transition: {
+        duration: totalDuration,
+        ease: "easeInOut",
+        times: [0, 0.2, 0.4, 0.6, 0.8, 1],
+      },
+    });
+  };
+
   const togglePlay = () => {
     if (!voiceRef.current || !musicRef.current) return;
 
     if (isPlaying) {
       voiceRef.current.pause();
       musicRef.current.pause();
+      imgControls.stop();
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     } else {
       voiceRef.current.play();
       musicRef.current.play();
+      startKenBurns();
       animationRef.current = requestAnimationFrame(updateTime);
     }
     setIsPlaying(!isPlaying);
@@ -112,13 +136,27 @@ const ReelPreviewDialog = ({
 
   const handleSeek = (value: number[]) => {
     const time = value[0];
-    if (voiceRef.current) {
-      voiceRef.current.currentTime = time;
-    }
-    if (musicRef.current) {
-      musicRef.current.currentTime = time;
-    }
+    if (voiceRef.current) voiceRef.current.currentTime = time;
+    if (musicRef.current) musicRef.current.currentTime = time;
     setCurrentTime(time);
+  };
+
+  const downloadSingleFile = async (url: string, name: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Revoke after a short delay to ensure download starts
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (err) {
+      console.error(`Failed to download ${name}:`, err);
+    }
   };
 
   const handleDownloadAssets = async () => {
@@ -126,35 +164,27 @@ const ReelPreviewDialog = ({
     setIsDownloading(true);
 
     try {
-      // Download each asset individually
-      const downloads = [
-        { url: reel.modelImageUrl, name: "reel-image.png" },
-        { url: reel.voiceoverUrl, name: "voiceover.mp3" },
-        { url: reel.musicUrl, name: "background-music.mp3" },
-      ];
+      // Download files one at a time with delays to avoid browser blocking
+      await downloadSingleFile(reel.modelImageUrl, "reel-image.png");
+      await new Promise((r) => setTimeout(r, 800));
 
-      for (const { url, name } of downloads) {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = name;
-        a.click();
-        URL.revokeObjectURL(blobUrl);
-        // Small delay between downloads
-        await new Promise((r) => setTimeout(r, 500));
-      }
+      await downloadSingleFile(reel.voiceoverUrl, "voiceover.mp3");
+      await new Promise((r) => setTimeout(r, 800));
 
-      // Also create a caption text file
+      await downloadSingleFile(reel.musicUrl, "background-music.mp3");
+      await new Promise((r) => setTimeout(r, 800));
+
+      // Create caption text file
       const captionText = `Instagram Caption:\n\n${reel.captionEnglish}\n\n---\n\nHindi Voiceover Script:\n${reel.captionHindi}`;
       const captionBlob = new Blob([captionText], { type: "text/plain" });
       const captionUrl = URL.createObjectURL(captionBlob);
       const a = document.createElement("a");
       a.href = captionUrl;
       a.download = "reel-captions.txt";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(captionUrl);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(captionUrl), 1000);
     } catch (err) {
       console.error("Download error:", err);
     } finally {
@@ -164,11 +194,12 @@ const ReelPreviewDialog = ({
 
   const handleClose = (isOpen: boolean) => {
     if (!isOpen) {
-      // Stop playback on close
       voiceRef.current?.pause();
       musicRef.current?.pause();
       setIsPlaying(false);
       setCurrentTime(0);
+      imgControls.stop();
+      imgControls.set({ scale: 1, x: "0%", y: "0%" });
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     }
     onOpenChange(isOpen);
@@ -198,16 +229,16 @@ const ReelPreviewDialog = ({
         </DialogHeader>
 
         {/* Video Preview Area */}
-        <div className="relative bg-black mx-4 rounded-xl overflow-hidden" style={{ aspectRatio: "9/16", maxHeight: "50vh" }}>
-          <img
+        <div
+          className="relative bg-black mx-4 rounded-xl overflow-hidden"
+          style={{ aspectRatio: "9/16", maxHeight: "50vh" }}
+        >
+          <motion.img
             src={reel.modelImageUrl}
             alt="Reel preview"
-            className="w-full h-full object-cover transition-transform duration-[15000ms] ease-linear"
-            style={{
-              transform: isPlaying
-                ? `scale(1.15) translateY(-3%)`
-                : "scale(1)",
-            }}
+            className="w-full h-full object-cover"
+            animate={imgControls}
+            initial={{ scale: 1, x: "0%", y: "0%" }}
           />
 
           {/* Play/Pause overlay */}
@@ -237,51 +268,28 @@ const ReelPreviewDialog = ({
         </div>
 
         {/* Audio Controls */}
-        <div className="px-4 py-3 space-y-3">
-          {/* Seek */}
-          <Slider
-            value={[currentTime]}
-            max={duration || 1}
-            step={0.1}
-            onValueChange={handleSeek}
-            className="w-full"
-          />
-
-          {/* Volume controls */}
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2 flex-1">
-              <button onClick={() => setVoiceMuted(!voiceMuted)} className="text-muted-foreground hover:text-foreground">
-                <Mic className={`w-4 h-4 ${voiceMuted ? "opacity-40" : ""}`} />
-              </button>
-              <span className="text-xs text-muted-foreground w-14">Voice</span>
-              <Slider
-                value={[voiceMuted ? 0 : voiceVolume]}
-                max={1}
-                step={0.05}
-                onValueChange={(v) => { setVoiceVolume(v[0]); setVoiceMuted(false); }}
-                className="flex-1"
-              />
-            </div>
-            <div className="flex items-center gap-2 flex-1">
-              <button onClick={() => setMusicMuted(!musicMuted)} className="text-muted-foreground hover:text-foreground">
-                <Music className={`w-4 h-4 ${musicMuted ? "opacity-40" : ""}`} />
-              </button>
-              <span className="text-xs text-muted-foreground w-14">Music</span>
-              <Slider
-                value={[musicMuted ? 0 : musicVolume]}
-                max={1}
-                step={0.05}
-                onValueChange={(v) => { setMusicVolume(v[0]); setMusicMuted(false); }}
-                className="flex-1"
-              />
-            </div>
-          </div>
-        </div>
+        <ReelAudioControls
+          currentTime={currentTime}
+          duration={duration}
+          voiceVolume={voiceVolume}
+          musicVolume={musicVolume}
+          voiceMuted={voiceMuted}
+          musicMuted={musicMuted}
+          onSeek={handleSeek}
+          onVoiceVolumeChange={(v) => { setVoiceVolume(v); setVoiceMuted(false); }}
+          onMusicVolumeChange={(v) => { setMusicVolume(v); setMusicMuted(false); }}
+          onToggleVoiceMute={() => setVoiceMuted(!voiceMuted)}
+          onToggleMusicMute={() => setMusicMuted(!musicMuted)}
+        />
 
         {/* Caption Preview */}
         <div className="px-4 pb-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Instagram Caption</p>
-          <p className="text-sm text-foreground leading-relaxed line-clamp-3">{reel.captionEnglish}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+            Instagram Caption
+          </p>
+          <p className="text-sm text-foreground leading-relaxed line-clamp-3">
+            {reel.captionEnglish}
+          </p>
         </div>
 
         {/* Actions */}

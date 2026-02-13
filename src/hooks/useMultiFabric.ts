@@ -101,7 +101,6 @@ export const useMultiFabric = () => {
       if (!result?.success) throw new Error(result?.error || "Detection failed");
 
       queryClient.invalidateQueries({ queryKey: ["multi_fabric_jobs"] });
-      toast({ title: "Labels detected!", description: result.detectedLabels?.summary || "Review the detected pieces below." });
       return { jobId: result.jobId, detectedLabels: result.detectedLabels };
     } catch (error: any) {
       toast({ title: "Detection failed", description: error.message, variant: "destructive" });

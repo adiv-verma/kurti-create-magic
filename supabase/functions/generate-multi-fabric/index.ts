@@ -359,17 +359,19 @@ function buildSinglePrompt(
   mannequinUrl: string | null,
   bgUrl: string | null
 ): string {
-  return `Generate a professional fashion product photography image showing a mannequin/dress form displaying an Indian suit/kurti set.
+  return `Generate a professional fashion product photography image showing a wooden bust mannequin/dress form displaying an Indian suit/kurti set with the fabric DRAPED over it (unstitched fabric draped elegantly, NOT a stitched garment).
 
 STRICT REQUIREMENTS:
-1. MANNEQUIN: ${mannequinUrl ? "Use the provided mannequin reference image to match the exact style, shape, and form of the mannequin/dress form." : "Use a professional dress form/mannequin."}
-2. GARMENT: Display the garment pieces as described: ${sampleDescription}
-3. TOP (Kurti): Must be made EXACTLY from the fabric shown in the source image. Preserve every detail — weave, texture, color, motifs, embroidery, prints. The fabric fidelity is CRITICAL.
-4. DUPATTA: If a dupatta piece is identified, drape it elegantly on or beside the mannequin, showing its fabric clearly.
-5. BOTTOM: ${hasBottom ? "Use the bottom fabric as shown in the source image for the pants/salwar." : "The bottom should be PLAIN, solid-color pants/churidar matching the top's primary color. NO prints or patterns on the bottom."}
-6. BACKGROUND: ${bgUrl ? "Use the provided background image as the setting/backdrop." : "Use a clean, professional studio background with neutral tones."}
-7. LIGHTING: Professional studio lighting, high-end fashion product photography style.
-8. COMPOSITION: Full mannequin view showing all garment pieces clearly — top, bottom, and dupatta visible.`;
+1. MANNEQUIN: ${mannequinUrl ? "Use the provided mannequin reference image to match the exact style, shape, and form of the mannequin/dress form." : "Use a professional wooden bust dress form/mannequin with a golden/wooden stand."} The mannequin style, pose, and form must be EXACTLY THE SAME across all generated images for this job.
+2. GARMENT STYLE: The fabric must be DRAPED over the mannequin as unstitched fabric — showing it as a suit piece/dress material, NOT as a finished stitched garment. The fabric should fall naturally over the mannequin form.
+3. GARMENT: Display the garment pieces as described: ${sampleDescription}
+4. TOP (Kurti): Must be made EXACTLY from the fabric shown in the source image. Preserve every detail — weave, texture, color, motifs, embroidery, prints. The fabric fidelity is CRITICAL. The top fabric should be draped over the bust of the mannequin.
+5. DUPATTA: If a dupatta piece is identified, drape it elegantly over one shoulder of the mannequin, showing its fabric clearly with its patterns and border visible.
+6. BOTTOM: ${hasBottom ? "Use the bottom fabric as shown in the source image, draped below the mannequin or displayed alongside." : "The bottom should be PLAIN, solid-color fabric matching the top's primary color. NO prints or patterns on the bottom."}
+7. BACKGROUND: ${bgUrl ? "Use the provided background image as the setting/backdrop." : "Use a clean, professional studio background with neutral tones."}
+8. LIGHTING: Professional studio lighting, high-end fashion product photography style.
+9. COMPOSITION: Full mannequin view showing all garment pieces clearly — top draped on bust, dupatta over shoulder, fabric flowing naturally.
+10. CONSISTENCY: The mannequin orientation, camera angle, lighting direction, and composition must be IDENTICAL for every variant. Only the fabric colors/patterns should change between variants.`;
 }
 
 function buildCombinedPrompt(
@@ -380,18 +382,19 @@ function buildCombinedPrompt(
   mannequinUrl: string | null,
   bgUrl: string | null
 ): string {
-  return `Generate a professional fashion product photography image showing ${sampleCount} mannequins/dress forms side by side in a single image.
+  return `Generate a professional fashion product photography image showing ${sampleCount} wooden bust mannequins/dress forms side by side in a single image, each with UNSTITCHED fabric DRAPED over them (not stitched garments).
 
 STRICT REQUIREMENTS:
 1. MANNEQUIN COUNT: Show exactly ${sampleCount} mannequins side by side.
-2. MANNEQUIN STYLE: ${mannequinUrl ? "Each mannequin should match the style/form from the provided mannequin reference image." : "Use professional dress forms/mannequins."}
-3. GARMENTS: Each mannequin displays the SAME kurti/suit design from the source image but in DIFFERENT COLOR VARIANTS: ${colorVariants.length > 0 ? colorVariants.join(", ") : "as seen in the image"}.
-4. TOP FABRIC: The kurti on each mannequin must match the EXACT design/pattern from the source image. Only the COLOR should vary between mannequins. Preserve weave, texture, motifs, embroidery patterns.
-5. DUPATTA: Each mannequin should have its matching dupatta draped elegantly.
-6. BOTTOM: ${hasBottom ? "Use matching bottom fabric for each variant." : "Plain, solid-color bottoms matching each variant's primary color."}
-7. BACKGROUND: ${bgUrl ? "Use the provided background image." : "Clean, professional studio background."}
-8. LIGHTING: Even, professional studio lighting across all mannequins.
-9. COMPOSITION: All mannequins evenly spaced, same size, full view of all garment pieces.`;
+2. MANNEQUIN STYLE: ${mannequinUrl ? "Each mannequin should match the style/form from the provided mannequin reference image." : "Use professional wooden bust dress forms/mannequins with golden/wooden stands."} ALL mannequins must be IDENTICAL in style, shape, pose, and orientation.
+3. DRAPING: The fabric on each mannequin must be DRAPED as unstitched suit material — flowing naturally over the bust form, NOT as a finished stitched garment.
+4. GARMENTS: Each mannequin displays the SAME kurti/suit design from the source image but in DIFFERENT COLOR VARIANTS: ${colorVariants.length > 0 ? colorVariants.join(", ") : "as seen in the image"}.
+5. TOP FABRIC: The draped fabric on each mannequin must match the EXACT design/pattern from the source image. Only the COLOR should vary between mannequins. Preserve weave, texture, motifs, embroidery patterns.
+6. DUPATTA: Each mannequin should have its matching dupatta draped elegantly over one shoulder, with borders and patterns visible.
+7. BOTTOM: ${hasBottom ? "Use matching bottom fabric for each variant, displayed below or alongside." : "Plain, solid-color fabric matching each variant's primary color."}
+8. BACKGROUND: ${bgUrl ? "Use the provided background image." : "Clean, professional studio background."}
+9. LIGHTING: Even, professional studio lighting across all mannequins.
+10. COMPOSITION: All mannequins evenly spaced, same size, same camera angle, full view of all draped fabric pieces.`;
 }
 
 async function generateMannequinImage(

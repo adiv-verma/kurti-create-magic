@@ -180,6 +180,7 @@ export type Database = {
       }
       multi_fabric_results: {
         Row: {
+          approval_status: Database["public"]["Enums"]["content_status"]
           caption_english: string | null
           caption_hindi: string | null
           color_variant: string | null
@@ -193,6 +194,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          approval_status?: Database["public"]["Enums"]["content_status"]
           caption_english?: string | null
           caption_hindi?: string | null
           color_variant?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          approval_status?: Database["public"]["Enums"]["content_status"]
           caption_english?: string | null
           caption_hindi?: string | null
           color_variant?: string | null

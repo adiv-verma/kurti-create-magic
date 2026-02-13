@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
 import { motion } from "framer-motion";
-import { Upload, Loader2, ImageIcon, Layers, ShirtIcon } from "lucide-react";
+import { Upload, Loader2, ImageIcon, Layers, ShirtIcon, Grid3X3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,8 +12,9 @@ import { useMannequinImages } from "@/hooks/useMannequinImages";
 import BackgroundSelectDialog from "@/components/upload/BackgroundSelectDialog";
 import MannequinBackgroundSelectDialog from "@/components/upload/MannequinBackgroundSelectDialog";
 import ImageGallery from "@/components/upload/ImageGallery";
+import MultiFabricTab from "@/components/upload/MultiFabricTab";
 
-type UploadTab = "fabric" | "mannequin" | "mannequin-library" | "background";
+type UploadTab = "fabric" | "multi-fabric" | "mannequin" | "mannequin-library" | "background";
 
 const tabConfig: Record<UploadTab, { label: string; icon: typeof Upload; description: string; helpText: string }> = {
   fabric: {
@@ -21,6 +22,12 @@ const tabConfig: Record<UploadTab, { label: string; icon: typeof Upload; descrip
     icon: Layers,
     description: "Upload fabric swatches to generate AI fashion content",
     helpText: "Upload plain fabric images — the AI will generate a photo of an Indian model wearing a kurti made from this fabric, along with bilingual captions. You'll choose a background before generation starts.",
+  },
+  "multi-fabric": {
+    label: "Multi Fabric → Mannequin",
+    icon: Grid3X3,
+    description: "Upload labeled fabric images to generate multiple mannequin displays",
+    helpText: "Upload a single image with labeled fabric pieces (T=Top, D=Dupatta, B=Bottom, C=Color variants). AI detects the labels and generates mannequin images for each sample.",
   },
   mannequin: {
     label: "Model → Mannequin",
@@ -249,20 +256,21 @@ const UploadPage = () => {
   const isUploading = uploading || uploadBackgrounds.isPending || uploadMannequins.isPending;
 
   // Gallery config per tab
-  const galleryConfig: Record<UploadTab, { title: string; images: any[]; onDelete: (id: string) => void }> = {
+  const galleryConfig: Record<Exclude<UploadTab, "multi-fabric">, { title: string; images: any[]; onDelete: (id: string) => void }> = {
     fabric: { title: "Uploaded Fabrics", images: fabricImages, onDelete: (id) => deleteImageMutation.mutate(id) },
     mannequin: { title: "Uploaded Model Photos", images: modelPhotos, onDelete: (id) => deleteImageMutation.mutate(id) },
     "mannequin-library": { title: "Mannequin Library", images: mannequinImages, onDelete: (id) => deleteMannequin.mutate(id) },
     background: { title: "Uploaded Backgrounds", images: backgroundImages, onDelete: (id) => deleteBackground.mutate(id) },
   };
 
-  const gallery = galleryConfig[activeTab];
+  const gallery = activeTab !== "multi-fabric" ? galleryConfig[activeTab] : null;
 
   const dropZoneLabel = {
     fabric: "fabric",
     mannequin: "model",
     "mannequin-library": "mannequin",
     background: "background",
+    "multi-fabric": "labeled fabric",
   }[activeTab];
 
   const uploadingLabel = {
@@ -270,6 +278,7 @@ const UploadPage = () => {
     mannequin: "Uploading & converting to mannequin...",
     "mannequin-library": "Uploading...",
     background: "Uploading...",
+    "multi-fabric": "Processing...",
   }[activeTab];
 
   return (
@@ -301,58 +310,67 @@ const UploadPage = () => {
           })}
         </div>
 
-        {/* Info box */}
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card rounded-xl p-4 mb-6 border-l-4 border-l-primary"
-        >
-          <p className="text-sm text-foreground leading-relaxed">💡 {config.helpText}</p>
-        </motion.div>
-
-        {/* Drop zone */}
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={handleDrop}
-            className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
-              dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
-            }`}
+        {/* Info box — hide for multi-fabric since it has its own */}
+        {activeTab !== "multi-fabric" && (
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card rounded-xl p-4 mb-6 border-l-4 border-l-primary"
           >
-            {isUploading ? (
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <p className="text-foreground font-medium">{uploadingLabel}</p>
-                {(activeTab === "fabric" || activeTab === "mannequin") && (
-                  <p className="text-sm text-muted-foreground">
-                    {activeTab === "mannequin"
-                      ? "AI is converting model to mannequin display"
-                      : "AI is creating model images and captions"}
-                  </p>
+            <p className="text-sm text-foreground leading-relaxed">💡 {config.helpText}</p>
+          </motion.div>
+        )}
+
+        {/* Multi-fabric tab gets its own component */}
+        {activeTab === "multi-fabric" ? (
+          <MultiFabricTab />
+        ) : (
+          <>
+            {/* Drop zone */}
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
+                  dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                }`}
+              >
+                {isUploading ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                    <p className="text-foreground font-medium">{uploadingLabel}</p>
+                    {(activeTab === "fabric" || activeTab === "mannequin") && (
+                      <p className="text-sm text-muted-foreground">
+                        {activeTab === "mannequin"
+                          ? "AI is converting model to mannequin display"
+                          : "AI is creating model images and captions"}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-foreground font-medium mb-1">
+                      Drag and drop your {dropZoneLabel} images here
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">Supports JPG, PNG, WebP up to 20MB</p>
+                    <label>
+                      <input type="file" accept="image/*" multiple onChange={handleFileSelect} className="hidden" />
+                      <Button variant="outline" asChild>
+                        <span className="cursor-pointer">Browse Files</span>
+                      </Button>
+                    </label>
+                  </>
                 )}
               </div>
-            ) : (
-              <>
-                <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
-                <p className="text-foreground font-medium mb-1">
-                  Drag and drop your {dropZoneLabel} images here
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">Supports JPG, PNG, WebP up to 20MB</p>
-                <label>
-                  <input type="file" accept="image/*" multiple onChange={handleFileSelect} className="hidden" />
-                  <Button variant="outline" asChild>
-                    <span className="cursor-pointer">Browse Files</span>
-                  </Button>
-                </label>
-              </>
-            )}
-          </div>
-        </motion.div>
+            </motion.div>
 
-        {/* Gallery */}
-        <ImageGallery title={gallery.title} images={gallery.images} onDelete={gallery.onDelete} />
+            {/* Gallery */}
+            {gallery && <ImageGallery title={gallery.title} images={gallery.images} onDelete={gallery.onDelete} />}
+          </>
+        )}
       </div>
 
       {/* Background selection dialog — for fabric uploads */}

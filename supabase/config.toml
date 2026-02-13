@@ -2,3 +2,6 @@ project_id = "cjcixwhlitymiuhnjejp"
 
 [functions.generate-content]
 verify_jwt = false
+
+[functions.generate-multi-fabric]
+verify_jwt = false

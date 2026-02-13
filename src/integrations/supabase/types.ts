@@ -136,6 +136,98 @@ export type Database = {
         }
         Relationships: []
       }
+      multi_fabric_jobs: {
+        Row: {
+          background_image_url: string | null
+          color_output_mode: string
+          created_at: string
+          detected_labels: Json | null
+          error_message: string | null
+          id: string
+          mannequin_image_url: string | null
+          source_image_url: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          background_image_url?: string | null
+          color_output_mode?: string
+          created_at?: string
+          detected_labels?: Json | null
+          error_message?: string | null
+          id?: string
+          mannequin_image_url?: string | null
+          source_image_url: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          background_image_url?: string | null
+          color_output_mode?: string
+          created_at?: string
+          detected_labels?: Json | null
+          error_message?: string | null
+          id?: string
+          mannequin_image_url?: string | null
+          source_image_url?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      multi_fabric_results: {
+        Row: {
+          caption_english: string | null
+          caption_hindi: string | null
+          color_variant: string | null
+          created_at: string
+          error_message: string | null
+          generated_image_url: string | null
+          id: string
+          job_id: string
+          label: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          caption_english?: string | null
+          caption_hindi?: string | null
+          color_variant?: string | null
+          created_at?: string
+          error_message?: string | null
+          generated_image_url?: string | null
+          id?: string
+          job_id: string
+          label: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          caption_english?: string | null
+          caption_hindi?: string | null
+          color_variant?: string | null
+          created_at?: string
+          error_message?: string | null
+          generated_image_url?: string | null
+          id?: string
+          job_id?: string
+          label?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multi_fabric_results_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "multi_fabric_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           business_name: string

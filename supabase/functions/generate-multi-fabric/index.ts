@@ -370,26 +370,30 @@ function buildSinglePrompt(
   mannequinUrl: string | null,
   bgUrl: string | null
 ): string {
-  return `Generate a professional fashion product photo of an Indian suit/kurti set DRAPED (unstitched) over a wooden bust mannequin.
+  return `Generate a professional fashion product photo of an Indian suit/kurti set displayed as UNSTITCHED SUIT PIECES draped over a wooden bust mannequin.
 
-${mannequinUrl ? "CRITICAL — MANNEQUIN REFERENCE: A reference mannequin image is provided. You MUST replicate its EXACT style, shape, draping method, stand type, and pose. Copy the reference mannequin precisely." : "Use a professional wooden bust dress form/mannequin with a golden/wooden stand."}
+${mannequinUrl ? "CRITICAL — MANNEQUIN REFERENCE: A reference mannequin image is provided. You MUST replicate its EXACT style, shape, draping method, stand type, pose, and how the fabric is arranged on it. Copy the reference mannequin PRECISELY — same bust shape, same stand, same draping arrangement." : "Use a professional wooden bust dress form/mannequin with a golden/wooden stand."}
 
-ABSOLUTE COLOR FIDELITY — THIS IS THE #1 PRIORITY:
-- The fabric colors in the generated image MUST be an EXACT match to the source image. Do NOT shift, lighten, darken, desaturate, or alter any colors.
-- Match the EXACT hex/RGB values of every color in the original fabric — the reds must be the same reds, blues the same blues, greens the same greens.
-- Preserve every detail: weave texture, motifs, embroidery, prints, border designs. Do NOT simplify or reinterpret patterns.
+DRAPING STYLE — THIS IS THE #1 PRIORITY:
+- The fabric MUST be shown as UNSTITCHED SUIT PIECES (not a stitched/tailored garment).
+- Drape the top fabric piece flat over the mannequin bust, showing the full panel with embroidery/work visible.
+- The dupatta must be draped over one shoulder, hanging naturally with its border and work clearly visible.
+- Bottom fabric should be folded/placed at the base of the mannequin.
+- ALL VARIANTS MUST USE THE EXACT SAME DRAPING ARRANGEMENT — same folds, same positioning, same shoulder drape, same fabric placement. The ONLY difference between variants is the color of the fabric.
+- Think of it as a catalog photo where the same product is shown in different colors — the presentation must be IDENTICAL.
 
-DRAPING STYLE:
-- The fabric must be DRAPED as unstitched suit material over the mannequin bust — NOT a stitched/tailored garment.
-- ${sampleDescription}
-- Dupatta: drape elegantly over one shoulder with borders/patterns visible.
-- Bottom: ${hasBottom ? "Use bottom fabric as shown in source." : "Plain solid-color fabric matching the top's dominant color. NO prints."}
+COLOR FIDELITY:
+- The fabric colors MUST match the source image exactly. Do NOT shift, lighten, darken, or alter any colors.
+- Preserve every detail: weave texture, motifs, embroidery, prints, border designs exactly as in the source.
+
+SAMPLE: ${sampleDescription}
+BOTTOM: ${hasBottom ? "Use bottom fabric as shown in source." : "Plain solid-color fabric matching the top's dominant color. NO prints."}
 
 SCENE:
 - Background: ${bgUrl ? "Use the provided background image." : "Clean professional studio, neutral tones."}
 - Lighting: Professional studio lighting, even and flattering.
-- Composition: Full mannequin view, all pieces clearly visible.
-- CONSISTENCY: Identical mannequin orientation, camera angle, and lighting across all variants. Only fabric changes.`;
+- Composition: Full mannequin view, centered, all pieces clearly visible.
+- CONSISTENCY: Identical mannequin orientation, camera angle, framing, and lighting across all variants.`;
 }
 
 function buildCombinedPrompt(

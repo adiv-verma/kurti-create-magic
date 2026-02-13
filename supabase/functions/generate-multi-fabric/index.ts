@@ -244,7 +244,7 @@ Be precise about what you see. If B is not present, set has_bottom to false.`,
           }).eq("id", result.id);
         }
       } else {
-        // Generate separate images for each sample/color variant
+      // Generate separate images for each sample/color variant
         const samplesToGenerate: { label: string; colorVariant: string | null; description: string }[] = [];
 
         // Base sample
@@ -277,6 +277,8 @@ Be precise about what you see. If B is not present, set has_bottom to false.`,
           });
         }
 
+        // Create all result records first
+        const resultRecords: { id: string; sample: typeof samplesToGenerate[0] }[] = [];
         for (const sample of samplesToGenerate) {
           const { data: result, error: resultError } = await supabaseAdmin
             .from("multi_fabric_results")
@@ -294,34 +296,43 @@ Be precise about what you see. If B is not present, set has_bottom to false.`,
             console.error("Failed to create result record:", resultError);
             continue;
           }
+          resultRecords.push({ id: result.id, sample });
+        }
 
+        // Generate captions once (shared across all variants)
+        const captionsPromise = generateCaptions(lovableApiKey, job.source_image_url, pieces);
+
+        // Generate all images in parallel
+        const imagePromises = resultRecords.map(async ({ id, sample }) => {
           try {
             const prompt = buildSinglePrompt(sample.description, hasBottom, mannequinImageUrl, backgroundImageUrl);
             const imageUrl = await generateMannequinImage(lovableApiKey, prompt, job.source_image_url, mannequinImageUrl, backgroundImageUrl);
-            const captions = await generateCaptions(lovableApiKey, job.source_image_url, pieces);
 
             if (imageUrl) {
               const storedUrl = await uploadGeneratedImage(supabaseAdmin, user.id, imageUrl);
+              const captions = await captionsPromise;
               await supabaseAdmin.from("multi_fabric_results").update({
                 generated_image_url: storedUrl,
                 caption_hindi: captions.hindi,
                 caption_english: captions.english,
                 status: "completed",
-              }).eq("id", result.id);
+              }).eq("id", id);
             } else {
               await supabaseAdmin.from("multi_fabric_results").update({
                 status: "failed",
                 error_message: "Image generation failed",
-              }).eq("id", result.id);
+              }).eq("id", id);
             }
           } catch (genErr) {
             console.error("Generation error for sample:", sample.label, genErr);
             await supabaseAdmin.from("multi_fabric_results").update({
               status: "failed",
               error_message: genErr instanceof Error ? genErr.message : "Unknown error",
-            }).eq("id", result.id);
+            }).eq("id", id);
           }
-        }
+        });
+
+        await Promise.all(imagePromises);
       }
 
       // Mark job completed

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
@@ -19,6 +19,21 @@ import { useReelGeneration } from "@/hooks/useReelGeneration";
 import type { PixelCrop } from "react-image-crop";
 
 type ContentStatus = Database["public"]["Enums"]["content_status"];
+
+/** Unified shape for both generated_content and multi_fabric_results */
+export interface LibraryItem {
+  id: string;
+  source: "content" | "multi_fabric";
+  status: ContentStatus;
+  created_at: string;
+  model_image_url: string | null;
+  caption_hindi: string | null;
+  caption_english: string | null;
+  fabric_id: string | null;
+  fabric_images: { image_url: string; file_name: string } | null;
+  // original row for download helper
+  _raw?: any;
+}
 
 const statusFilters: { label: string; value: ContentStatus | "all" }[] = [
   { label: "All", value: "all" },
@@ -48,6 +63,7 @@ const Library = () => {
   const [cropTarget, setCropTarget] = useState<{
     contentId: string;
     imageUrl: string;
+    source: "content" | "multi_fabric";
   } | null>(null);
   const [isCropping, setIsCropping] = useState(false);
 
@@ -61,7 +77,8 @@ const Library = () => {
     approveAndDownload,
   } = useReelGeneration();
 
-  const { data: content = [], isLoading } = useQuery({
+  // Fetch generated_content
+  const { data: rawContent = [], isLoading: loadingContent } = useQuery({
     queryKey: ["generated_content", user?.id, filter],
     queryFn: async () => {
       let query = supabase
@@ -81,30 +98,106 @@ const Library = () => {
     enabled: !!user,
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: ContentStatus }) => {
-      const { error } = await supabase
-        .from("generated_content")
-        .update({ status })
-        .eq("id", id);
+  // Fetch multi_fabric_results (completed ones)
+  const { data: rawMultiFabric = [], isLoading: loadingMulti } = useQuery({
+    queryKey: ["multi_fabric_results_library", user?.id, filter],
+    queryFn: async () => {
+      let query = supabase
+        .from("multi_fabric_results")
+        .select("*, multi_fabric_jobs(source_image_url)")
+        .eq("user_id", user!.id)
+        .eq("status", "completed")
+        .order("created_at", { ascending: false });
+
+      if (filter !== "all") {
+        query = query.eq("approval_status", filter);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const isLoading = loadingContent || loadingMulti;
+
+  // Merge both into unified LibraryItem[]
+  const content: LibraryItem[] = useMemo(() => {
+    const contentItems: LibraryItem[] = rawContent.map((item: any) => ({
+      id: item.id,
+      source: "content" as const,
+      status: item.status,
+      created_at: item.created_at,
+      model_image_url: item.model_image_url,
+      caption_hindi: item.caption_hindi,
+      caption_english: item.caption_english,
+      fabric_id: item.fabric_id,
+      fabric_images: item.fabric_images,
+      _raw: item,
+    }));
+
+    const multiItems: LibraryItem[] = rawMultiFabric.map((item: any) => ({
+      id: item.id,
+      source: "multi_fabric" as const,
+      status: item.approval_status,
+      created_at: item.created_at,
+      model_image_url: item.generated_image_url,
+      caption_hindi: item.caption_hindi,
+      caption_english: item.caption_english,
+      fabric_id: null,
+      fabric_images: item.multi_fabric_jobs
+        ? { image_url: item.multi_fabric_jobs.source_image_url, file_name: `Multi-Fabric (${item.label})` }
+        : null,
+      _raw: item,
+    }));
+
+    return [...contentItems, ...multiItems].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [rawContent, rawMultiFabric]);
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status, source }: { id: string; status: ContentStatus; source: "content" | "multi_fabric" }) => {
+      if (source === "multi_fabric") {
+        const { error } = await supabase
+          .from("multi_fabric_results")
+          .update({ approval_status: status })
+          .eq("id", id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("generated_content")
+          .update({ status })
+          .eq("id", id);
+        if (error) throw error;
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["generated_content"] });
+      queryClient.invalidateQueries({ queryKey: ["multi_fabric_results_library"] });
       toast({ title: `Content ${variables.status}` });
     },
   });
 
   const bulkUpdateMutation = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: ContentStatus }) => {
-      const { error } = await supabase
-        .from("generated_content")
-        .update({ status })
-        .in("id", ids);
-      if (error) throw error;
+      // Separate ids by source
+      const contentIds = ids.filter((id) => content.find((c) => c.id === id)?.source === "content");
+      const multiIds = ids.filter((id) => content.find((c) => c.id === id)?.source === "multi_fabric");
+
+      if (contentIds.length > 0) {
+        const { error } = await supabase.from("generated_content").update({ status }).in("id", contentIds);
+        if (error) throw error;
+      }
+      if (multiIds.length > 0) {
+        const { error } = await supabase.from("multi_fabric_results").update({ approval_status: status }).in("id", multiIds);
+        if (error) throw error;
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["generated_content"] });
+      queryClient.invalidateQueries({ queryKey: ["multi_fabric_results_library"] });
       setSelectedIds(new Set());
       toast({ title: `${variables.ids.length} items ${variables.status}` });
     },
@@ -170,8 +263,8 @@ const Library = () => {
     toast({ title: "Download complete!" });
   };
 
-  const openCropDialog = (contentId: string, imageUrl: string) => {
-    setCropTarget({ contentId, imageUrl });
+  const openCropDialog = (contentId: string, imageUrl: string, source: "content" | "multi_fabric" = "content") => {
+    setCropTarget({ contentId, imageUrl, source });
     setCropDialogOpen(true);
   };
 
@@ -190,13 +283,22 @@ const Library = () => {
         .from("generated-images")
         .getPublicUrl(fileName);
 
-      const { error: updateError } = await supabase
-        .from("generated_content")
-        .update({ model_image_url: publicUrlData.publicUrl })
-        .eq("id", cropTarget.contentId);
-      if (updateError) throw updateError;
+      if (cropTarget.source === "multi_fabric") {
+        const { error: updateError } = await supabase
+          .from("multi_fabric_results")
+          .update({ generated_image_url: publicUrlData.publicUrl })
+          .eq("id", cropTarget.contentId);
+        if (updateError) throw updateError;
+        queryClient.invalidateQueries({ queryKey: ["multi_fabric_results_library"] });
+      } else {
+        const { error: updateError } = await supabase
+          .from("generated_content")
+          .update({ model_image_url: publicUrlData.publicUrl })
+          .eq("id", cropTarget.contentId);
+        if (updateError) throw updateError;
+        queryClient.invalidateQueries({ queryKey: ["generated_content"] });
+      }
 
-      queryClient.invalidateQueries({ queryKey: ["generated_content"] });
       toast({ title: "Image cropped and saved!" });
       setCropDialogOpen(false);
       setCropTarget(null);
@@ -283,7 +385,7 @@ const Library = () => {
                     isSelected={selectedIds.has(item.id)}
                     onToggleSelect={toggleSelect}
                     onUpdateStatus={(id, status) =>
-                      updateStatusMutation.mutate({ id, status })
+                      updateStatusMutation.mutate({ id, status, source: item.source })
                     }
                     onOpenRegenerateDialog={openRegenerateDialog}
                     onDownload={handleDownload}

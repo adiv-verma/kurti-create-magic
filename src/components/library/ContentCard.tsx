@@ -18,7 +18,7 @@ interface ContentCardProps {
   onUpdateStatus: (id: string, status: ContentStatus) => void;
   onOpenRegenerateDialog: (contentId: string, fabricId: string, imageUrl: string) => void;
   onDownload: (item: any) => void;
-  onCrop: (contentId: string, imageUrl: string) => void;
+  onCrop: (contentId: string, imageUrl: string, source?: "content" | "multi_fabric") => void;
   onGenerateReel: (contentId: string) => void;
 }
 
@@ -36,6 +36,7 @@ const ContentCard = ({
   onGenerateReel,
 }: ContentCardProps) => {
   const fabric = item.fabric_images as any;
+  const isMultiFabric = item.source === "multi_fabric";
   const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null);
 
   return (
@@ -194,8 +195,8 @@ const ContentCard = ({
             <Button
               size="sm"
               variant="outline"
-              disabled={isRegenerating}
-              onClick={() => onOpenRegenerateDialog(item.id, item.fabric_id, fabric?.image_url)}
+              disabled={isRegenerating || isMultiFabric}
+              onClick={() => onOpenRegenerateDialog(item.id, item.fabric_id || "", fabric?.image_url)}
             >
               {isRegenerating ? (
                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -208,7 +209,7 @@ const ContentCard = ({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onCrop(item.id, item.model_image_url)}
+                onClick={() => onCrop(item.id, item.model_image_url, item.source)}
               >
                 <Crop className="w-4 h-4 mr-1" />
                 Crop

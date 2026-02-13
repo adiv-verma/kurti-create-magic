@@ -370,19 +370,26 @@ function buildSinglePrompt(
   mannequinUrl: string | null,
   bgUrl: string | null
 ): string {
-  return `Generate a professional fashion product photography image showing a wooden bust mannequin/dress form displaying an Indian suit/kurti set with the fabric DRAPED over it (unstitched fabric draped elegantly, NOT a stitched garment).
+  return `Generate a professional fashion product photo of an Indian suit/kurti set DRAPED (unstitched) over a wooden bust mannequin.
 
-STRICT REQUIREMENTS:
-1. MANNEQUIN: ${mannequinUrl ? "Use the provided mannequin reference image to match the exact style, shape, and form of the mannequin/dress form." : "Use a professional wooden bust dress form/mannequin with a golden/wooden stand."} The mannequin style, pose, and form must be EXACTLY THE SAME across all generated images for this job.
-2. GARMENT STYLE: The fabric must be DRAPED over the mannequin as unstitched fabric — showing it as a suit piece/dress material, NOT as a finished stitched garment. The fabric should fall naturally over the mannequin form.
-3. GARMENT: Display the garment pieces as described: ${sampleDescription}
-4. TOP (Kurti): Must be made EXACTLY from the fabric shown in the source image. Preserve every detail — weave, texture, color, motifs, embroidery, prints. The fabric fidelity is CRITICAL. The top fabric should be draped over the bust of the mannequin.
-5. DUPATTA: If a dupatta piece is identified, drape it elegantly over one shoulder of the mannequin, showing its fabric clearly with its patterns and border visible.
-6. BOTTOM: ${hasBottom ? "Use the bottom fabric as shown in the source image, draped below the mannequin or displayed alongside." : "The bottom should be PLAIN, solid-color fabric matching the top's primary color. NO prints or patterns on the bottom."}
-7. BACKGROUND: ${bgUrl ? "Use the provided background image as the setting/backdrop." : "Use a clean, professional studio background with neutral tones."}
-8. LIGHTING: Professional studio lighting, high-end fashion product photography style.
-9. COMPOSITION: Full mannequin view showing all garment pieces clearly — top draped on bust, dupatta over shoulder, fabric flowing naturally.
-10. CONSISTENCY: The mannequin orientation, camera angle, lighting direction, and composition must be IDENTICAL for every variant. Only the fabric colors/patterns should change between variants.`;
+${mannequinUrl ? "CRITICAL — MANNEQUIN REFERENCE: A reference mannequin image is provided. You MUST replicate its EXACT style, shape, draping method, stand type, and pose. Copy the reference mannequin precisely." : "Use a professional wooden bust dress form/mannequin with a golden/wooden stand."}
+
+ABSOLUTE COLOR FIDELITY — THIS IS THE #1 PRIORITY:
+- The fabric colors in the generated image MUST be an EXACT match to the source image. Do NOT shift, lighten, darken, desaturate, or alter any colors.
+- Match the EXACT hex/RGB values of every color in the original fabric — the reds must be the same reds, blues the same blues, greens the same greens.
+- Preserve every detail: weave texture, motifs, embroidery, prints, border designs. Do NOT simplify or reinterpret patterns.
+
+DRAPING STYLE:
+- The fabric must be DRAPED as unstitched suit material over the mannequin bust — NOT a stitched/tailored garment.
+- ${sampleDescription}
+- Dupatta: drape elegantly over one shoulder with borders/patterns visible.
+- Bottom: ${hasBottom ? "Use bottom fabric as shown in source." : "Plain solid-color fabric matching the top's dominant color. NO prints."}
+
+SCENE:
+- Background: ${bgUrl ? "Use the provided background image." : "Clean professional studio, neutral tones."}
+- Lighting: Professional studio lighting, even and flattering.
+- Composition: Full mannequin view, all pieces clearly visible.
+- CONSISTENCY: Identical mannequin orientation, camera angle, and lighting across all variants. Only fabric changes.`;
 }
 
 function buildCombinedPrompt(
@@ -393,19 +400,21 @@ function buildCombinedPrompt(
   mannequinUrl: string | null,
   bgUrl: string | null
 ): string {
-  return `Generate a professional fashion product photography image showing ${sampleCount} wooden bust mannequins/dress forms side by side in a single image, each with UNSTITCHED fabric DRAPED over them (not stitched garments).
+  return `Generate a professional fashion product photo showing ${sampleCount} wooden bust mannequins side by side, each with UNSTITCHED fabric DRAPED over them.
 
-STRICT REQUIREMENTS:
-1. MANNEQUIN COUNT: Show exactly ${sampleCount} mannequins side by side.
-2. MANNEQUIN STYLE: ${mannequinUrl ? "Each mannequin should match the style/form from the provided mannequin reference image." : "Use professional wooden bust dress forms/mannequins with golden/wooden stands."} ALL mannequins must be IDENTICAL in style, shape, pose, and orientation.
-3. DRAPING: The fabric on each mannequin must be DRAPED as unstitched suit material — flowing naturally over the bust form, NOT as a finished stitched garment.
-4. GARMENTS: Each mannequin displays the SAME kurti/suit design from the source image but in DIFFERENT COLOR VARIANTS: ${colorVariants.length > 0 ? colorVariants.join(", ") : "as seen in the image"}.
-5. TOP FABRIC: The draped fabric on each mannequin must match the EXACT design/pattern from the source image. Only the COLOR should vary between mannequins. Preserve weave, texture, motifs, embroidery patterns.
-6. DUPATTA: Each mannequin should have its matching dupatta draped elegantly over one shoulder, with borders and patterns visible.
-7. BOTTOM: ${hasBottom ? "Use matching bottom fabric for each variant, displayed below or alongside." : "Plain, solid-color fabric matching each variant's primary color."}
-8. BACKGROUND: ${bgUrl ? "Use the provided background image." : "Clean, professional studio background."}
-9. LIGHTING: Even, professional studio lighting across all mannequins.
-10. COMPOSITION: All mannequins evenly spaced, same size, same camera angle, full view of all draped fabric pieces.`;
+${mannequinUrl ? "CRITICAL — MANNEQUIN REFERENCE: A reference mannequin image is provided. ALL mannequins MUST replicate its EXACT style, shape, draping method, stand type, and pose." : "Use professional wooden bust dress forms with golden/wooden stands."} ALL mannequins must be IDENTICAL.
+
+ABSOLUTE COLOR FIDELITY — #1 PRIORITY:
+- Each mannequin shows the SAME design but in DIFFERENT COLOR VARIANTS: ${colorVariants.length > 0 ? colorVariants.join(", ") : "as seen in the image"}.
+- Colors MUST be EXACT matches to the source image. Do NOT shift, lighten, darken, or alter any colors.
+- Preserve weave, texture, motifs, embroidery, border designs exactly.
+
+DRAPING: Unstitched suit material draped naturally over bust forms — NOT stitched garments.
+DUPATTA: Each mannequin with matching dupatta draped over one shoulder.
+BOTTOM: ${hasBottom ? "Matching bottom fabric for each variant." : "Plain solid-color matching each variant's dominant color."}
+BACKGROUND: ${bgUrl ? "Use the provided background image." : "Clean professional studio."}
+LIGHTING: Even professional studio lighting across all mannequins.
+COMPOSITION: All mannequins evenly spaced, same size, same angle, full view.`;
 }
 
 async function generateMannequinImage(
@@ -415,18 +424,18 @@ async function generateMannequinImage(
   mannequinImageUrl: string | null,
   backgroundImageUrl: string | null
 ): Promise<string | null> {
-  const messageContent: any[] = [
-    { type: "text", text: prompt },
-    { type: "image_url", image_url: { url: sourceImageUrl } },
-  ];
+  const messageContent: any[] = [];
+  // Put mannequin reference FIRST so the model prioritizes its style
   if (mannequinImageUrl) {
     messageContent.push({ type: "image_url", image_url: { url: mannequinImageUrl } });
   }
+  messageContent.push({ type: "text", text: prompt });
+  messageContent.push({ type: "image_url", image_url: { url: sourceImageUrl } });
   if (backgroundImageUrl) {
     messageContent.push({ type: "image_url", image_url: { url: backgroundImageUrl } });
   }
 
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 1; attempt++) {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
